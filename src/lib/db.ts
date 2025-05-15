@@ -4,7 +4,7 @@ export default class Database{
     client: Client;
 
     constructor(){
-
+        console.log(process.env.DATABASE_URL)
         if(!process.env.DATABASE_URL){
             console.error('DATABASE_URL not set');
             process.exit(1)
@@ -33,7 +33,7 @@ export default class Database{
         name: string,
         ispublic: boolean
     }[]>{
-        const res = await this.client.query('SELECT * FROM cache.caches WHERE key = $1', [key]);
+        const res = await this.client.query('SELECT * FROM cache.caches WHERE $1 = all(allowedkeys)', [key]);
         return res.rows;
     }
 }
