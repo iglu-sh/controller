@@ -16,3 +16,13 @@ export type problem = {
     "heading" : string,
     "description" : string,
 }
+
+export type cacheCreationObject = {
+    name: string,
+    githubUsername: string,
+    isPublic: boolean,
+    enableBuilder: boolean,
+    compression: string,
+    priority: number,
+    publicSigningKey: string,
+}
