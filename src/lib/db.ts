@@ -62,4 +62,34 @@ export default class Database{
             return {"name":row.name, "key": row.publicsigningkeys};
         });
     }
+
+    public async getCacheById(id:string, apiKey:string){
+        const res = await this.client.query('SELECT * FROM cache.caches WHERE id = $1 AND $2 = any(allowedkeys)', [id, apiKey]);
+        if(res.rows.length === 0){
+            throw new Error("Cache not found")
+        }
+        return res.rows[0];
+    }
+
+    public async getStorageStats(id:string, apiKey:string){
+        const res = await this.client.query(`
+            SELECT sum(cnarsize) as total_size
+            FROM cache.hashes
+                     INNER JOIN cache.caches c on hashes.cache = c.id
+            WHERE cache = $1
+              AND $2= any(c.allowedkeys);
+        `, [id, apiKey]);
+        return res.rows[0].total_size;
+    }
+    public async getTrafficStats(id:string, apiKey:string){
+        const res = await this.client.query(`
+            SELECT request.*
+            FROM cache.request
+                     INNER JOIN cache.caches c on request.cache_id = c.id
+            WHERE request.cache_id = $1
+              AND $2 = any(c.allowedkeys)
+              AND request.time > now() - INTERVAL '4 days';
+        `, [id, apiKey]);
+        return res.rows
+    }
 }

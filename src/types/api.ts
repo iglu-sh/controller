@@ -26,3 +26,16 @@ export type cacheCreationObject = {
     priority: number,
     publicSigningKey: string,
 }
+
+export type cacheRequestLog = {
+    id: string,
+    hash: string,
+    cache_id: string,
+    type: 'inbound' | 'outbound',
+    tim: string
+}
+export type cacheInfoObject = {
+    cache: cache,
+    storage: string,
+    request: Array<cacheRequestLog>
+}

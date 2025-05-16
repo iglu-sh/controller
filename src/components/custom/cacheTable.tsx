@@ -120,7 +120,7 @@ const columns: ColumnDef<Cache>[] = [
                     }}>Copy URL</Button>
                     <Link href={`/app/caches/${row.getValue("id")}`}>
                         <Button variant="outline">
-                            Edit
+                            Details
                         </Button>
                     </Link>
                     <Button variant="destructive">Delete</Button>
