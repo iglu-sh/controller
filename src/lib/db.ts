@@ -73,22 +73,28 @@ export default class Database{
 
     public async getStorageStats(id:string, apiKey:string){
         const res = await this.client.query(`
-            SELECT sum(cnarsize) as total_size
+            SELECT sum(cnarsize) as total_size, count(*) as store_hashes
             FROM cache.hashes
                      INNER JOIN cache.caches c on hashes.cache = c.id
             WHERE cache = $1
               AND $2= any(c.allowedkeys);
         `, [id, apiKey]);
-        return res.rows[0].total_size;
+        return {
+            storageUsed: res.rows[0].total_size,
+            storeHashes: res.rows[0].store_hashes
+        };
     }
     public async getTrafficStats(id:string, apiKey:string){
         const res = await this.client.query(`
-            SELECT request.*
+            SELECT date_bin('1 day', request.time, '2025-05-01') as time,
+                   count(*) as Total, request.type
             FROM cache.request
-                     INNER JOIN cache.caches c on request.cache_id = c.id
+                INNER JOIN cache.caches c on request.cache_id = c.id
             WHERE request.cache_id = $1
               AND $2 = any(c.allowedkeys)
-              AND request.time > now() - INTERVAL '4 days';
+              AND request.time > now() - INTERVAL '30 days'
+            GROUP BY 1, request.type
+            ORDER BY time;
         `, [id, apiKey]);
         return res.rows
     }

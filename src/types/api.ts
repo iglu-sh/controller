@@ -32,10 +32,19 @@ export type cacheRequestLog = {
     hash: string,
     cache_id: string,
     type: 'inbound' | 'outbound',
-    tim: string
+    time: string
+}
+
+export type requestAggregatedResponseType = {
+    time: string,
+    total: number,
+    type: 'inbound' | 'outbound'
 }
 export type cacheInfoObject = {
     cache: cache,
-    storage: string,
-    request: Array<cacheRequestLog>
+    storage: {
+        storageUsed: number,
+        storeHashes: number,
+    },
+    request: Array<requestAggregatedResponseType>
 }

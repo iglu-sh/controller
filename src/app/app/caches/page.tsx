@@ -13,6 +13,13 @@ import {useEffect, useState} from "react";
 import {getCookie} from "cookies-next";
 import Link from "next/link";
 import './page.css'
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList, BreadcrumbPage,
+    BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
 export default function CacheOverviewPage(){
     const [caches, setCaches] = useState([]);
     useEffect(()=>{
@@ -53,8 +60,20 @@ export default function CacheOverviewPage(){
     }, [])
 
     return (
-        <div>
-            <h1>
+        <div className="flex flex-col gap-4">
+            <Breadcrumb>
+                <BreadcrumbList>
+                    <BreadcrumbItem>
+                        <BreadcrumbLink href="/app">Home</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                        <BreadcrumbLink href="/app/caches">Caches</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                </BreadcrumbList>
+            </Breadcrumb>
+            <h1 className="text-2xl font-bold">
                 Caches
             </h1>
             <div>

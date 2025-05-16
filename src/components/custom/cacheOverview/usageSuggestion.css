@@ -1,0 +1,26 @@
+.codeBlock{
+    background-color: var(--color-card);
+    padding: 10px;
+    margin-top: 10px;
+    width: 100%;
+    font-family: var(--font-mono) monospace;
+    display: flex;
+}
+
+/*
+Align the element to the right
+*/
+.copyBtn{
+    background-color: var(--color-accent);
+    color: var(--color-accent-foreground);
+    border-radius: 4px;
+    padding: 5px;
+    border: none;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.copyBtn:hover{
+    background-color: var(--color-accent-foreground);
+    color: var(--color-accent);
+}
