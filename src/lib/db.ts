@@ -1,6 +1,6 @@
 import {Client} from "pg";
 import 'dotenv/config'
-import {cache, cacheCreationObject} from "@/types/api";
+import {cache, cacheCreationObject, userInfoObject} from "@/types/api";
 export default class Database{
     client: Client;
 
@@ -50,7 +50,7 @@ export default class Database{
         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
         `,
-        [info.githubUsername, info.isPublic, info.name, "read", info.compression, info.publicSigningKey, [owner], process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
+        [info.githubUsername, info.isPublic, info.name, "Read", info.compression.toUpperCase(), info.publicSigningKey, [owner], process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
     }
 
     async getPublicSigningKeysForKey(key:string){
@@ -73,7 +73,7 @@ export default class Database{
 
     public async getStorageStats(id:string, apiKey:string){
         const res = await this.client.query(`
-            SELECT sum(cnarsize) as total_size, count(*) as store_hashes
+            SELECT sum(cfilesize) as total_size, count(*) as store_hashes
             FROM cache.hashes
                      INNER JOIN cache.caches c on hashes.cache = c.id
             WHERE cache = $1
@@ -97,5 +97,73 @@ export default class Database{
             ORDER BY time;
         `, [id, apiKey]);
         return res.rows
+    }
+
+    public async getNewestAddedHashes(id:string, apiKey:string){
+        const res = await this.client.query(`
+            SELECT hashes.* FROM cache.hashes
+                INNER JOIN cache.caches c on hashes.cache = c.id
+            WHERE cache = $1
+              AND $2 = any(allowedkeys)
+            ORDER BY updatedat DESC
+            LIMIT 10;
+        `, [id, apiKey]);
+        return res.rows
+    }
+
+    public async getTopRequestedHashes(id:string, apiKey:string){
+        const res = await this.client.query(`
+            SELECT hash, h.*, count(*) as total
+            FROM cache.request
+                INNER JOIN cache.caches c on request.cache_id = c.id
+                INNER JOIN cache.hashes h on request.hash = h.id
+            WHERE request.cache_id IN (SELECT id FROM cache.caches WHERE $1 = any(allowedkeys))
+                AND request.type = 'outbound'
+            GROUP BY hash, h.id
+            ORDER BY total DESC
+            LIMIT 10;
+        `, [apiKey]);
+        return res.rows
+    }
+
+    public async getTopCaches(apikey:string):Promise<{cache:number, sum:number}[]>{
+        return await this.client.query(`
+            SELECT cache, sum(cfilesize) as size FROM cache.hashes
+                  INNER JOIN cache.caches c on hashes.cache = c.id
+            WHERE $1 = any(allowedkeys)
+            GROUP BY cache ORDER BY sum(cfilesize) DESC LIMIT 10;
+        `, [apikey]).then((res)=>{return res.rows})
+    }
+
+    public async getHashesCountByKey(apiKey:string):Promise<number>{
+        const res = await this.client.query(`
+            SELECT count(*) as count FROM cache.hashes
+                  INNER JOIN cache.caches c on hashes.cache = c.id
+            WHERE $1 = any(allowedkeys);
+        `, [apiKey]);
+        return res.rows[0].count;
+    }
+
+    public async getUserInformation(apikey:string):Promise<userInfoObject>{
+        //Get all the caches this user has access to
+        const caches = await this.client.query('SELECT * FROM cache.caches WHERE $1 = any(allowedkeys)', [apikey]);
+        //Loop over the caches and add them to the return object
+        let cacheList:userInfoObject = {
+            caches: [],
+            newestCashedHashes: [],
+            biggestCaches: [],
+            topRequestedHashes: [],
+            hashCount: 0
+        };
+
+        for(const cache of caches.rows){
+            cacheList.caches.push(cache);
+            cacheList.newestCashedHashes = await this.getNewestAddedHashes(cache.id, apikey);
+            cacheList.topRequestedHashes = await this.getTopRequestedHashes(cache.id, apikey);
+        }
+
+        cacheList.hashCount = await this.getHashesCountByKey(apikey);
+        cacheList.biggestCaches = await this.getTopCaches(apikey);
+        return cacheList;
     }
 }

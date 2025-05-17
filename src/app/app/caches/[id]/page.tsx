@@ -87,7 +87,7 @@ export default function CacheDetails() {
                 {cacheData ? <Status cacheData={cacheData}/> : <div>Loading...</div> }
                 <div className="flex flex-col gap-4 border-accent border-2 rounded-md p-4">
                     <p>There are currently</p>
-                    <h1>{cacheData && parseInt(cacheData.storage.storageUsed) ? (parseInt(cacheData.storage.storageUsed) / 10000000000).toFixed(5) : 0 } GB</h1>
+                    <h1>{cacheData && parseInt(cacheData.storage.storageUsed) ? (parseInt(cacheData.storage.storageUsed) / 1000000000).toFixed(5) : 0 } GB</h1>
                     <p>in your Cache</p>
                 </div>
                 <div className="flex flex-col gap-4 border-accent border-2 rounded-md p-4">

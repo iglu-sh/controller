@@ -74,7 +74,7 @@ export function CreationForm(){
             isPublic = true
         }
         isPublic ? isPublic = true : isPublic = false
-        if(compression !== "xz" && compression !== "zst"){
+        if(compression !== "XZ" && compression !== "ZSTD"){
             toast.error("Compression must be either XZ or ZSTD")
             return
         }
@@ -109,7 +109,7 @@ export function CreationForm(){
         await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, requestOptions).then((response) => {
             if(response.status === 201){
                 toast.success("Cache created successfully")
-                window.location.href = "/caches"
+                window.location.href = "/app/caches"
             }
             else if(response.status === 409){
                 toast.error("A Cache with that name already exists")
@@ -175,8 +175,8 @@ export function CreationForm(){
                             <SelectValue placeholder="Compression"  defaultValue={"XZ"}/>
                         </SelectTrigger>
                         <SelectContent >
-                            <SelectItem value="zst">ZSTD</SelectItem>
-                            <SelectItem value="xz">XZ</SelectItem>
+                            <SelectItem value="ZSTD">ZSTD</SelectItem>
+                            <SelectItem value="XZ">XZ</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

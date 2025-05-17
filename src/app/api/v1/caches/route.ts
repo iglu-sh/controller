@@ -83,7 +83,7 @@ export async function POST(req: NextRequest){
   return NextResponse.json({error: "isPublic must be a boolean"}, {status: 400})
   }
 
-  if(typeof body.compression !== "string" || (body.compression !== "xz" && body.compression !== "zst") ){
+  if(typeof body.compression !== "string" || (body.compression !== "XZ" && body.compression !== "ZSTD") ){
     return NextResponse.json({error: "Compression must be either xz or zstd"}, {status: 400})
   }
 

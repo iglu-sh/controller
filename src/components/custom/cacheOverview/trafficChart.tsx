@@ -47,6 +47,7 @@ export default function TrafficChart({data}:{data:cacheInfoObject}) {
             })
         }
         console.log(chartData)
+        //@ts-ignore
         setChartData(chartData)
     }, [])
     return (
@@ -54,7 +55,7 @@ export default function TrafficChart({data}:{data:cacheInfoObject}) {
             <h1>
                 Traffic Overview
             </h1>
-            <ChartContainer config={chartConfig} className="min-h-[100px] w-full">
+            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
                 <AreaChart accessibilityLayer data={chartData}
                            margin={{
                                left: 12,

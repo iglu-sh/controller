@@ -48,3 +48,31 @@ export type cacheInfoObject = {
     },
     request: Array<requestAggregatedResponseType>
 }
+
+export type hash = {
+    id: number,
+    path: string,
+    cache: number,
+    updatedat: string,
+    cderiver:string,
+    cfilehash:string,
+    cfilesize:string,
+    creferences:string,
+    csig:string,
+    cstorehash:string,
+    cstoresuffix:string,
+    parts:string,
+    compression: 'xz' | 'zstd'
+}
+
+export interface topRequestHashType extends hash {
+    total: number
+}
+
+export type userInfoObject = {
+    caches: Array<cache>,
+    newestCashedHashes: Array<hash>,
+    topRequestedHashes: Array<topRequestHashType>,
+    biggestCaches: Array<{cache:number, size:number}>,
+    hashCount: number,
+}
