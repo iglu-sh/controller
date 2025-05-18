@@ -9,6 +9,7 @@ const geistSans = localFont({
 
 const geistMono = localFont({
   src: '../../public/GeistMono-Regular.ttf',
+  variable: "--font-geist-mono",
 })
 
 export const metadata: Metadata = {
