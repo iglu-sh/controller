@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import {ThemeProvider} from "@/components/theme-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const geistSans = localFont({
+  src: '../../public/Geist-Regular.ttf',
+  variable: "--font-geist-sans"
+})
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: '../../public/GeistMono-Regular.ttf',
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+})
 
 export const metadata: Metadata = {
   title: "Create Next App",
