@@ -5,6 +5,7 @@ import {ThemeProvider} from "@/components/theme-provider";
 
 const geistSans = localFont({
   src: '../../public/Geist-Regular.ttf',
+  variable: "--font-geist-sans"
 })
 
 const geistMono = localFont({
