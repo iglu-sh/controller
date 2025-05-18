@@ -11,6 +11,8 @@ let
   packageJSON = lib.importJSON "${src}/package.json";
   pname = packageJSON.name;
 
+  isX86_64 = stdenv.hostPlatform.system == "x86_64-linux";
+
   nodeModules = stdenv.mkDerivation {
     pname = "${pname}_node-modules";
     inherit src version;
@@ -40,7 +42,7 @@ let
       runHook postInstall
     '';
 
-    outputHash = if stdenv.isLinux then "sha256-iJfo8sXM/CJ9rVaDRNlYVGvCziYYFDtzfSrAns1oOH4=" else "";
+    outputHash = if isX86_64 then "sha256-iJfo8sXM/CJ9rVaDRNlYVGvCziYYFDtzfSrAns1oOH4=" else "sha256-ct6pS4kpiiT/kxbesaXhMgRlq2ymL3ht4sOKvjHewns=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
@@ -50,8 +52,8 @@ stdenv.mkDerivation rec{
 
   nativeBuildInputs = [
     nodeModules
-    nodejs-slim_latest
     makeWrapper
+    nodejs-slim_latest 
   ];
 
   buildInputs = [ bun ];
