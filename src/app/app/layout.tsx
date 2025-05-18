@@ -16,7 +16,7 @@ import {
     BarChartIcon,
     ChartScatterIcon,
     ChevronDown,
-    Database, Dot,
+    Database, Dot, Globe,
     HardDriveIcon,
     HomeIcon,
     Package,
@@ -29,17 +29,36 @@ import GearIcon from "next/dist/client/components/react-dev-overlay/ui/icons/gea
 import { DropdownMenu, DropdownMenuContent,  DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import {cacheInfoObject, userInfoObject} from "@/types/api";
 
 export default function CacheOverviewPageLayout(
     {children}: Readonly<{
         children: React.ReactNode;
     }>) {
+    const [caches, setCaches] = React.useState<userInfoObject | null>(null);
     useEffect(()=>{
         const apiKey = getCookie("iglu-session");
         if(!apiKey){
             window.location.href = "/"
         }
-    })
+
+        async function fetchUserData(){
+            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                }
+            });
+            if(!response.ok){
+                window.location.href = "/"
+            }
+            const data = await response.json();
+            console.log(data)
+            setCaches(data);
+        }
+        fetchUserData()
+    }, [])
     //<Navbar />
     return (
         <SidebarProvider className="flex flex-row">
@@ -63,13 +82,25 @@ export default function CacheOverviewPageLayout(
                                     <ChevronDown className="ml-auto" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[--radix-popper-anchor-width]">
-                                <DropdownMenuItem>
-                                    <span>All</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <span>Acme Corp.</span>
-                                </DropdownMenuItem>
+                            <DropdownMenuContent className="w-full">
+                                <Link href="/app?cache=all">
+                                        <DropdownMenuItem>
+                                            <Globe className="mr-2 h-4 w-4"/>
+                                            <span style={{background:"linear-gradient(90deg, orange, purple)", backgroundClip:"text", color:"transparent"}}>All Caches</span>
+                                        </DropdownMenuItem>
+                                </Link>
+                                {
+                                    caches && caches.caches ? caches.caches.map((cache)=>{
+                                        return(
+                                            <Link href={`/app?cache=${cache.id}`} key={cache.name}>
+                                                <DropdownMenuItem>
+                                                    <HardDriveIcon className="mr-2 h-4 w-4" />
+                                                    {cache.name}
+                                                </DropdownMenuItem>
+                                            </Link>
+                                        )
+                                    }) : null
+                                }
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </SidebarGroup>
