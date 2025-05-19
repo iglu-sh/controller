@@ -1,6 +1,7 @@
 import {Client} from "pg";
 import 'dotenv/config'
 import {cache, cacheCreationObject, userInfoObject} from "@/types/api";
+
 export default class Database{
     client: Client;
 
@@ -34,7 +35,12 @@ export default class Database{
         name: string,
         ispublic: boolean
     }[]>{
-        const res = await this.client.query('SELECT * FROM cache.caches WHERE $1 = all(allowedkeys)', [key]);
+        const hasher = new Bun.CryptoHasher("sha512");
+        hasher.update(key);
+        const hash = hasher.digest('hex');
+        console.log(hash)
+        const res = await this.client.query('SELECT c.id, c.name, c.isPublic FROM cache.keys INNER JOIN cache.caches c ON c.id = keys.cache_id WHERE hash = $1', [hash]);
+        console.log(res.rows)
         return res.rows;
     }
 
@@ -145,6 +151,8 @@ export default class Database{
     }
 
     public async getUserInformation(apikey:string):Promise<userInfoObject>{
+        const hash = await Bun.password.hash(apikey);
+        console.log(hash)
         //Get all the caches this user has access to
         const caches = await this.client.query('SELECT * FROM cache.caches WHERE $1 = any(allowedkeys)', [apikey]);
         //Loop over the caches and add them to the return object

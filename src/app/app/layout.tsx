@@ -30,12 +30,15 @@ import { DropdownMenu, DropdownMenuContent,  DropdownMenuItem, DropdownMenuTrigg
 import Link from "next/link";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {cacheInfoObject, userInfoObject} from "@/types/api";
+import {useSearchParams} from "next/navigation";
 
 export default function CacheOverviewPageLayout(
     {children}: Readonly<{
         children: React.ReactNode;
     }>) {
     const [caches, setCaches] = React.useState<userInfoObject | null>(null);
+    const [id, setId] = React.useState<string>("all");
+    const searchParams = useSearchParams()
     useEffect(()=>{
         const apiKey = getCookie("iglu-session");
         if(!apiKey){
@@ -59,6 +62,16 @@ export default function CacheOverviewPageLayout(
         }
         fetchUserData()
     }, [])
+
+    useEffect(() => {
+        const id = searchParams.get("cache");
+        if (id) {
+            setId(id);
+        } else {
+            setId("all");
+        }
+    }, [searchParams]);
+
     //<Navbar />
     return (
         <SidebarProvider className="flex flex-row">
