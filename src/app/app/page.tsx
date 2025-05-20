@@ -97,7 +97,7 @@ export default function Home(){
                 Hey there 👋, welcome back! You are currently seeing data for
                 {
                     currentCache === "all" ?
-                        <span style={{color: "var(--color-orange-400"}}>all the caches you have access too</span> :
+                        <span style={{color: "var(--color-orange-400"}}> all the caches you have access too</span> :
                         <span style={{color: "var(--color-green-400"}}> cache "{currentCache.name}"</span>
                 }
             </div>

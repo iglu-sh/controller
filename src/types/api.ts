@@ -6,7 +6,6 @@ export type cache = {
     permission: string,
     preferredcompressionmethod: string,
     publicsigningkeys: string,
-    allowedkeys: string[],
     uri: string,
     priority: number
     problems: problem[]

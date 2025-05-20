@@ -40,10 +40,8 @@ export default function CacheOverviewPage(){
             .then(result => {
                 //Check if the caches are all configured correctly and add problems to the problems array
                 let toPush = []
-                console.log(result.caches[0])
                 for(let cache of result.caches){
                     cache["problems"] = []
-
                     //Rules for the cache to be in an invalid state
                     if(cache.publicsigningkeys === ""){
                         cache.problems.push({

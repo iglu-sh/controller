@@ -31,6 +31,7 @@ import Link from "next/link";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {cacheInfoObject, userInfoObject} from "@/types/api";
 import {useSearchParams} from "next/navigation";
+import {Card, CardHeader} from "@/components/ui/card";
 
 export default function CacheOverviewPageLayout(
     {children}: Readonly<{
@@ -39,6 +40,7 @@ export default function CacheOverviewPageLayout(
     const [caches, setCaches] = React.useState<userInfoObject | null>(null);
     const [id, setId] = React.useState<string>("all");
     const searchParams = useSearchParams()
+    const [page, setPage] = React.useState<string>("/app");
     useEffect(()=>{
         const apiKey = getCookie("iglu-session");
         if(!apiKey){
@@ -59,6 +61,17 @@ export default function CacheOverviewPageLayout(
             const data = await response.json();
             console.log(data)
             setCaches(data);
+            //Get the current cache
+            const id = searchParams.get("cache");
+            if (id) {
+                setId(id);
+            } else {
+                setId("all");
+            }
+
+            //Get the current page
+            const url = window.location.pathname;
+            setPage(url);
         }
         fetchUserData()
     }, [])
@@ -70,6 +83,9 @@ export default function CacheOverviewPageLayout(
         } else {
             setId("all");
         }
+        //Get the current page
+        const url = window.location.pathname;
+        setPage(url);
     }, [searchParams]);
 
     //<Navbar />
@@ -90,13 +106,14 @@ export default function CacheOverviewPageLayout(
                     <SidebarGroup>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton>
-                                    Select Cache
+                                <SidebarMenuButton className="flex flex-row">
+                                    {id === "all" ? <div className="flex flex-row items-center"><Globe className="mr-2 h-4 w-4"/>All Caches</div> :
+                                        <div className="flex flex-row items-center"><HardDriveIcon className="mr-2 h-4 w-4" />{caches ? caches.caches?.filter((cache)=>cache.id.toString() == id)[0].name : null}</div>}
                                     <ChevronDown className="ml-auto" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-full">
-                                <Link href="/app?cache=all">
+                                <Link href={`${process.env.NEXT_PUBLIC_URL}${page}?cache=all`}>
                                         <DropdownMenuItem>
                                             <Globe className="mr-2 h-4 w-4"/>
                                             <span style={{background:"linear-gradient(90deg, orange, purple)", backgroundClip:"text", color:"transparent"}}>All Caches</span>
@@ -105,7 +122,7 @@ export default function CacheOverviewPageLayout(
                                 {
                                     caches && caches.caches ? caches.caches.map((cache)=>{
                                         return(
-                                            <Link href={`/app?cache=${cache.id}`} key={cache.name}>
+                                            <Link href={`${process.env.NEXT_PUBLIC_URL}${page}?cache=${cache.id}`} key={cache.name}>
                                                 <DropdownMenuItem>
                                                     <HardDriveIcon className="mr-2 h-4 w-4" />
                                                     {cache.name}
@@ -122,31 +139,31 @@ export default function CacheOverviewPageLayout(
                         <SidebarGroupAction title="Add Cache">
                             <Plus /><span className="sr-only">Add Cache</span>
                         </SidebarGroupAction>
-                        <Link href="/app" className="w-full">
+                        <Link href={`/app?cache=${id}`} className="w-full">
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <HomeIcon className="mr-2 h-4 w-4" />
                                 Dashboard
                             </Button>
                         </Link>
-                        <Link href="/app/derivations">
+                        <Link href={`/app/derivations?cache=${id}`}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <Package className="mr-2 h-4 w-4" />
                                 Stored Paths
                             </Button>
                         </Link>
-                        <Link href="/app/caches">
+                        <Link href={`/app/caches?cache=${id}`}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <Database className="mr-2 h-4 w-4" />
                                 Caches
                             </Button>
                         </Link>
-                        <Link href="/app/performance">
+                        <Link href={`app/performance?cache=${id}`}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <BarChartIcon className="mr-2 h-4 w-4" />
                                 Performance
                             </Button>
                         </Link>
-                        <Link href="/app/settings">
+                        <Link href={`/app/settings?cache=${id}`}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <GearIcon/>
                                 Settings
