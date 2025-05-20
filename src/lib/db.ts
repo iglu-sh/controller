@@ -1,6 +1,6 @@
 import {Client} from "pg";
 import 'dotenv/config'
-import {cache, cacheCreationObject, userInfoObject} from "@/types/api";
+import {cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
 
 export default class Database{
     client: Client;
@@ -31,6 +31,7 @@ export default class Database{
         return hasher.digest('hex');
     }
     async close(){
+        console.log('Database closed');
         await this.client.end();
     }
 
@@ -52,7 +53,7 @@ export default class Database{
         }
 
         const createdCache = await this.client.query(`
-        INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, publicsigningkeys uri, priority)
+        INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, publicsigningkeys, uri, priority)
         VALUES($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *;
         `,
@@ -67,7 +68,7 @@ export default class Database{
         const cacheId = createdCache.rows[0].id;
         await this.client.query(`
             INSERT INTO cache.keys (cache_id, name, description, hash, permissions)
-                VALUES($1, $2, $3, $4)
+                VALUES($1, $2, $3, $4, $5)
         `, [cacheId, "Initial Key", "The key that was used during the initial creation of the cache", key, "Read"]);
         return {
             id: createdCache.rows[0].id,
@@ -86,7 +87,7 @@ export default class Database{
     async getPublicSigningKeysForKey(key:string){
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`
-            SELECT publicsigningkeys, name 
+            SELECT publicsigningkeys, caches.name 
             FROM cache.caches 
                 INNER JOIN cache.keys ON caches.id = keys.cache_id
             WHERE keys.hash = $1 AND publicsigningkeys != \'\'`, [hash]);
@@ -101,7 +102,7 @@ export default class Database{
     public async getCacheById(id:string, apiKey:string){
         const hash = this.getHashedKey(apiKey);
         const res = await this.client.query(`
-            SELECT * FROM cache.caches 
+            SELECT caches.* FROM cache.caches 
                 INNER JOIN cache.keys ON caches.id = keys.cache_id
             WHERE caches.id = $1 AND keys.hash = $2
         `, [id, hash]);
@@ -223,5 +224,38 @@ export default class Database{
         cacheList.hashCount = await this.getHashesCountByKey(apikey);
         cacheList.biggestCaches = await this.getTopCaches(apikey);
         return cacheList;
+    }
+
+    public async getKeysForCache(cache_id:string, apiKey:string):Promise<key[]>{
+        const hash = this.getHashedKey(apiKey);
+        const keys = await this.client.query(`
+            SELECT id, cache_id, name, description, created_at, permissions FROM cache.keys WHERE cache_id = $1 
+        `, [cache_id]);
+
+        //If there are no keys found then the key provided is not valid
+        if(keys.rows.length === 0){
+            throw new Error("No keys found")
+        }
+
+        //If the key is found then return the keys
+        return keys.rows;
+    }
+
+    public async getKeysForUser(apiKey:string):Promise<key[]>{
+        const hash = this.getHashedKey(apiKey);
+        const keys = await this.client.query(`
+            SELECT id, cache_id, name, description, created_at, permissions FROM cache.keys WHERE cache_id IN (SELECT cache_id FROM cache.keys WHERE hash = $1) AND hash != $1
+        `, [hash]);
+        return keys.rows
+    }
+
+    public async createKey(name:string, description:string, cache_id:number, key:string){
+        const hash = this.getHashedKey(key);
+        await this.client.query(`
+            INSERT INTO cache.keys (cache_id, name, description, hash, permissions)
+            VALUES($1, $2, $3, $4, $5)
+        `, [cache_id, name, description, hash, "Read"]);
+
+        return key;
     }
 }

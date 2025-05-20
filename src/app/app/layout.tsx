@@ -137,7 +137,9 @@ export default function CacheOverviewPageLayout(
                     <SidebarGroup className="flex flex-col gap-2">
                         <SidebarGroupLabel>Caches</SidebarGroupLabel>
                         <SidebarGroupAction title="Add Cache">
-                            <Plus /><span className="sr-only">Add Cache</span>
+                            <Link href={"/app/caches/create"}>
+                                <Plus /><span className="sr-only">Add Cache</span>
+                            </Link>
                         </SidebarGroupAction>
                         <Link href={`/app?cache=${id}`} className="w-full">
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">

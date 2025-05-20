@@ -75,3 +75,12 @@ export type userInfoObject = {
     biggestCaches: Array<{cache:number, size:number}>,
     hashCount: number,
 }
+
+export type key = {
+    id: number,
+    cache_id: number,
+    created_at: string,
+    permissions: string,
+    name: string,
+    description: string,
+}

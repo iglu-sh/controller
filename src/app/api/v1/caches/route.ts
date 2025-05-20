@@ -125,6 +125,7 @@ export async function POST(req: NextRequest){
     }
   }
   catch(error){
+    console.log(error)
     if(error.message === "-1"){
       responseBody = {error: "Cache already exists"}
       responseStatus = 409

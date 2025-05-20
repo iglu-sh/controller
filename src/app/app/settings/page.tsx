@@ -15,38 +15,38 @@ export default function Settings(){
     const [currentCache, setCurrentCache] = useState<cache | null>();
     const [id, setId] = useState<string>("all");
     const searchParams = useSearchParams()
-    useEffect(() => {
-        async function wrap(){
-            const apiKey = getCookie("iglu-session");
-            if(!apiKey){
-                //window.location.href = "/"
+    async function wrap(){
+        const apiKey = getCookie("iglu-session");
+        if(!apiKey){
+            //window.location.href = "/"
+        }
+        const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
             }
-            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                }
-            });
-            if(!response.ok){
-                //window.location.href = "/"
-            }
-            const data = await response.json();
-            setUserData(data);
-            //Get the current cache
-            const id = searchParams.get("cache");
-            setId(id);
-            if (id) {
-                const cache = data.caches.filter((item)=> item.id == id);
-                if(cache[0]) {
-                    setCurrentCache(cache[0]);
-                } else {
-                    setCurrentCache(null);
-                }
+        });
+        if(!response.ok){
+            //window.location.href = "/"
+        }
+        const data = await response.json();
+        setUserData(data);
+        //Get the current cache
+        const id = searchParams.get("cache");
+        setId(id);
+        if (id) {
+            const cache = data.caches.filter((item)=> item.id == id);
+            if(cache[0]) {
+                setCurrentCache(cache[0]);
             } else {
                 setCurrentCache(null);
             }
+        } else {
+            setCurrentCache(null);
         }
+    }
+    useEffect(() => {
         wrap()
     }, []);
 
@@ -72,7 +72,7 @@ export default function Settings(){
                 </div>
                 <div className="flex flex-col gap-4">
                     {
-                        id && id !== "all" ? <div>You are editing Settings for Cache {currentCache.name}</div> : <div>You are editing Settings for all caches</div>
+                        id && id !== "all" ? <div>You are editing Settings for Cache {currentCache ? currentCache.name : null}</div> : <div>You are editing Settings for all caches</div>
                     }
                 </div>
             </div>
@@ -87,7 +87,7 @@ export default function Settings(){
                 <TabsContent value="general"><GeneralSettings /></TabsContent>
                 <TabsContent value="storage"><StorageSettings /></TabsContent>
                 <TabsContent value="network">Nothing here yet :D</TabsContent>
-                <TabsContent value="security"><SecuritySettings /></TabsContent>
+                <TabsContent value="security"><SecuritySettings userInfoObj={userData ? userData : null} cache={currentCache ? currentCache : null} /></TabsContent>
                 <TabsContent value="maintenance">Change your password here.</TabsContent>
             </Tabs>
 
