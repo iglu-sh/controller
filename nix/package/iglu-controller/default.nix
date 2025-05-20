@@ -53,7 +53,7 @@ stdenv.mkDerivation rec{
   nativeBuildInputs = [
     nodeModules
     makeWrapper
-    nodejs-slim_latest 
+    nodejs-slim_latest
   ];
 
   buildInputs = [ bun ];
