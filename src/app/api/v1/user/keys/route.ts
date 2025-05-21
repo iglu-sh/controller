@@ -98,19 +98,7 @@ export async function POST(request:NextRequest){
     try{
         const key = `${Bun.randomUUIDv7()}`;
         data = {key: key};
-        for(const cache_id of body.cache_id){
-            //Get the target cache and check if the user has access to it
-            const cache = await db.getCacheById(cache_id, apiKey);
-            //If the cache is not found then return a 404
-            if(!cache){
-                status = 404;
-                data = {error: "Cache not found"};
-            }
-            else{
-                //Create the key
-                await db.createKey(body.name, body.description, cache_id, key);
-            }
-        }
+        await db.createKey(body.name, body.description, body.cache_id, key);
     }
     catch(err){
         console.log(err)

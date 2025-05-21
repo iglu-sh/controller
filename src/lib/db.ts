@@ -37,7 +37,13 @@ export default class Database{
 
     async getCachesForKey(key: string):Promise<cache[]>{
         const hash = this.getHashedKey(key);
-        const res = await this.client.query('SELECT c.* FROM cache.keys INNER JOIN cache.caches c ON c.id = keys.cache_id WHERE hash = $1', [hash]);
+        const res = await this.client.query(`
+            SELECT c.* 
+            FROM cache.keys 
+                INNER JOIN cache.cache_key ON keys.id = cache_key.key_id
+                INNER JOIN cache.caches c ON c.id = cache_key.cache_id 
+            WHERE hash = $1
+        `, [hash]);
         console.log(res.rows)
         return res.rows;
     }
@@ -66,10 +72,16 @@ export default class Database{
         //Create the key in the keys table
         const key = this.getHashedKey(owner);
         const cacheId = createdCache.rows[0].id;
+        const keyResult = await this.client.query(`
+            SELECT * FROM cache.keys WHERE hash = $1
+        `, [key]);
+        if(!keyResult.rows || keyResult.rows.length === 0){
+            throw new Error("Error creating key")
+        }
+        const keyId = keyResult.rows[0].id;
         await this.client.query(`
-            INSERT INTO cache.keys (cache_id, name, description, hash, permissions)
-                VALUES($1, $2, $3, $4, $5)
-        `, [cacheId, "Initial Key", "The key that was used during the initial creation of the cache", key, "Read"]);
+            INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
+        `, [cacheId, keyId]);
         return {
             id: createdCache.rows[0].id,
             name: createdCache.rows[0].name,
@@ -88,8 +100,9 @@ export default class Database{
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`
             SELECT publicsigningkeys, caches.name 
-            FROM cache.caches 
-                INNER JOIN cache.keys ON caches.id = keys.cache_id
+            FROM cache.caches
+                     INNER JOIN cache.cache_key ON caches.id = cache_key.cache_id
+                     INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE keys.hash = $1 AND publicsigningkeys != \'\'`, [hash]);
         if(res.rows.length === 0){
             return []
@@ -102,8 +115,9 @@ export default class Database{
     public async getCacheById(id:string, apiKey:string){
         const hash = this.getHashedKey(apiKey);
         const res = await this.client.query(`
-            SELECT caches.* FROM cache.caches 
-                INNER JOIN cache.keys ON caches.id = keys.cache_id
+            SELECT caches.* FROM cache.caches
+                 INNER JOIN cache.cache_key ON caches.id = cache_key.cache_id
+                 INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE caches.id = $1 AND keys.hash = $2
         `, [id, hash]);
         if(res.rows.length === 0){
@@ -118,7 +132,8 @@ export default class Database{
             SELECT sum(cfilesize) as total_size, count(*) as store_hashes
             FROM cache.hashes
                 INNER JOIN cache.caches c on hashes.cache = c.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE cache = $1
               AND keys.hash = $2; 
         `, [id, hash]);
@@ -134,7 +149,8 @@ export default class Database{
                    count(*) as Total, request.type
             FROM cache.request
                 INNER JOIN cache.caches c on request.cache_id = c.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE request.cache_id = $1
               AND keys.hash = $2
               AND request.time > now() - INTERVAL '30 days'
@@ -149,7 +165,8 @@ export default class Database{
         const res = await this.client.query(`
             SELECT hashes.* FROM cache.hashes
                 INNER JOIN cache.caches c on hashes.cache = c.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE cache = $1
                 AND keys.hash = $2
             ORDER BY updatedat DESC
@@ -165,7 +182,8 @@ export default class Database{
             FROM cache.request
                 INNER JOIN cache.caches c on request.cache_id = c.id
                 INNER JOIN cache.hashes h on request.hash = h.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE keys.hash = $1 
                 AND request.type = 'outbound'
             GROUP BY request.hash, h.id
@@ -180,7 +198,8 @@ export default class Database{
         return await this.client.query(`
             SELECT cache, sum(cfilesize) as size FROM cache.hashes
                 INNER JOIN cache.caches c on hashes.cache = c.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id  
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE keys.hash = $1 
             GROUP BY cache ORDER BY sum(cfilesize) DESC LIMIT 10;
         `, [hash]).then((res)=>{return res.rows})
@@ -191,7 +210,8 @@ export default class Database{
         const res = await this.client.query(`
             SELECT count(*) as count FROM cache.hashes
                 INNER JOIN cache.caches c on hashes.cache = c.id
-                INNER JOIN cache.keys ON keys.cache_id = c.id
+                INNER JOIN cache.cache_key ON c.id = cache_key.cache_id
+                INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE keys.hash = $1;
         `, [hash]);
         return res.rows[0].count;
@@ -202,7 +222,8 @@ export default class Database{
         //Get all the caches this user has access to
         const caches = await this.client.query(`
             SELECT caches.* FROM cache.caches
-                INNER JOIN cache.keys ON caches.id = keys.cache_id
+                 INNER JOIN cache.cache_key ON caches.id = cache_key.cache_id
+                 INNER JOIN cache.keys ON cache_key.key_id = keys.id
             WHERE keys.hash = $1 
             `,
             [hash]);
@@ -229,7 +250,10 @@ export default class Database{
     public async getKeysForCache(cache_id:string, apiKey:string):Promise<key[]>{
         const hash = this.getHashedKey(apiKey);
         const keys = await this.client.query(`
-            SELECT id, cache_id, name, description, created_at, permissions FROM cache.keys WHERE cache_id = $1 
+            SELECT keys.id, cache_id, name, description, keys.created_at, permissions 
+            FROM cache.keys 
+                INNER JOIN cache.cache_key ON keys.id = cache_key.key_id
+            WHERE cache_id = $1 
         `, [cache_id]);
 
         //If there are no keys found then the key provided is not valid
@@ -244,20 +268,38 @@ export default class Database{
     public async getKeysForUser(apiKey:string, excludedCache:string):Promise<key[]>{
         const hash = this.getHashedKey(apiKey);
         const keys = await this.client.query(`
-            SELECT id, cache_id, name, description, created_at, permissions 
-            FROM cache.keys 
-            WHERE cache_id IN (SELECT cache_id FROM cache.keys WHERE hash = $1) AND cache_id != $2 AND hash != $1
+            SELECT keys.id, cache_id, name, description, keys.created_at, permissions
+            FROM cache.keys
+                     INNER JOIN cache.cache_key ck on keys.id = ck.key_id
+            WHERE cache_id IN (
+                SELECT cache_id FROm cache.keys
+                    INNER JOIN cache.cache_key c on keys.id = c.key_id
+                WHERE keys.hash = $1
+            ) AND keys.hash != $1 AND cache_id != $2
+
         `, [hash, excludedCache]);
         return keys.rows
     }
 
-    public async createKey(name:string, description:string, cache_id:number, key:string){
+    public async createKey(name:string, description:string, cache_id:Array<number>, key:string){
         const hash = this.getHashedKey(key);
-        await this.client.query(`
-            INSERT INTO cache.keys (cache_id, name, description, hash, permissions)
-            VALUES($1, $2, $3, $4, $5)
-        `, [cache_id, name, description, hash, "Read"]);
+        const keyResult = await this.client.query(`
+            INSERT INTO cache.keys (name, description, hash)
+                
+            VALUES($1, $2, $3)
+                RETURNING *;
+        `, [name, description, hash]);
 
+        if(!keyResult.rows || keyResult.rows.length === 0){
+            throw new Error("Error creating key")
+        }
+
+        const keyId = keyResult.rows[0].id;
+        for(const cache of cache_id){
+            await this.client.query(`
+                INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
+            `, [cache, keyId]);
+        }
         return key;
     }
 
