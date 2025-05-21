@@ -47,7 +47,7 @@ export default function Home(){
             //Get the ?cache= from the url
             const urlParams = new URLSearchParams(window.location.search);
             const cacheParam = urlParams.get("cache");
-            console.log(urlParams.get("cache"), cacheParam);
+            console.log("Cache parameter: %s", urlParams.get("cache"), cacheParam);
             if(!cacheParam || cacheParam === "all") {
                 setCurrentCache("all")
             }
