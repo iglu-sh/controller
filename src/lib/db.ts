@@ -246,16 +246,30 @@ export default class Database{
         cacheList.biggestCaches = await this.getTopCaches(apikey);
         return cacheList;
     }
-
-    public async getKeysForCache(cache_id:string, apiKey:string):Promise<key[]>{
+    public async checkKeyForCache(cache_id:string, apiKey:string):Promise<boolean>{
         const hash = this.getHashedKey(apiKey);
+        console.log('Checking key for cache', cache_id, apiKey);
+        const res = await this.client.query(`
+            SELECT * FROM cache.cache_key
+            WHERE cache_id = $1 AND key_id = (SELECT id FROM cache.keys WHERE hash = $2)
+        `, [cache_id, hash]);
+        if(res.rows.length === 0){
+            return false;
+        }
+        return true;
+    }
+    public async getKeysForCache(cache_id:string, apiKey:string):Promise<key[]>{
+        const isAuthenticated = await this.checkKeyForCache(cache_id, apiKey);
+        //If the key is not authenticated then return an empty array
+        if(!isAuthenticated){
+            throw new Error("Key not authenticated")
+        }
         const keys = await this.client.query(`
             SELECT keys.id, cache_id, name, description, keys.created_at, permissions 
             FROM cache.keys 
                 INNER JOIN cache.cache_key ON keys.id = cache_key.key_id
-            WHERE cache_id = $1 
+            WHERE cache_id = $1
         `, [cache_id]);
-
         //If there are no keys found then the key provided is not valid
         if(keys.rows.length === 0){
             throw new Error("No keys found")
@@ -303,4 +317,48 @@ export default class Database{
         return key;
     }
 
+    public async expandKey(cache_id:string, keys:Array<string>){
+        //TODO: Move this to a transaction
+        for(const key of keys){
+            const keyResult = await this.client.query(`
+                SELECT * FROM cache.keys WHERE id = $1
+            `, [key]);
+            console.log(keyResult.rows)
+            if(!keyResult.rows || keyResult.rows.length === 0){
+                throw new Error("Error creating key")
+            }
+            const keyId = keyResult.rows[0].id;
+            //Check if this key already exists in the cache_key table
+            const check = await this.client.query(`
+                SELECT * FROM cache.cache_key WHERE cache_id = $1 AND key_id = $2
+            `, [cache_id, keyId]);
+            console.log(check.rows);
+            if(check.rows.length > 0){
+                //If it exists then skip
+                continue;
+            }
+            await this.client.query(`
+                INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
+            `, [cache_id, keyId]);
+        }
+    }
+
+    public async removeKeyFromCache(cache_id:string, key:string){
+        //Remove the combination from the cache_key table
+        await this.client.query(`
+            DELETE FROM cache.cache_key WHERE cache_id = $1 AND key_id = $2
+        `, [cache_id, key]);
+
+        //Check if this key is still in use
+        const check = await this.client.query(`
+            SELECT * FROM cache.cache_key WHERE key_id = $1
+        `, [key]);
+
+        //If it is not in use then delete the key
+        if(check.rows.length === 0){
+            await this.client.query(`
+                DELETE FROM cache.keys WHERE id = $1
+            `, [key]);
+        }
+    }
 }

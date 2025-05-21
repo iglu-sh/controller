@@ -2,7 +2,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {cache, userInfoObject} from "@/types/api";
 import {DataTable} from "@/components/custom/dataTable";
 import {useEffect, useState} from "react";
-import {getCookie} from "cookies-next";
+import {deleteCookie, getCookie} from "cookies-next";
 import {Button} from "@/components/ui/button";
 import {Cross, Pencil, X} from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {Checkbox} from "@/components/ui/checkbox";
 import CreateNewKey from "@/components/custom/settings/security/createNewKey";
+import DeleteDialogue from "@/components/custom/settings/security/deleteDialogue";
 
 
 export default function SecuritySettings({cache, userInfoObj}: {cache: cache | null, userInfoObj:userInfoObject | null}) {
@@ -82,7 +83,7 @@ export default function SecuritySettings({cache, userInfoObj}: {cache: cache | n
                 return (
                     <div className="flex items-center space-x-2">
                         <Button variant="outline"><Pencil /></Button>
-                        <Button variant="destructive" disabled={!(keys && keys.length > 0) }><X /></Button>
+                        <DeleteDialogue keys={keys} keyID={row.getValue("id")} cacheID={cache.id.toString()} deletedKeyCallback={()=>deletedKeyCallback()}/>
                     </div>
                 );
             }
@@ -105,10 +106,29 @@ export default function SecuritySettings({cache, userInfoObj}: {cache: cache | n
             console.error(data.error);
         }
     }
-
+    async function deletedKeyCallback(){
+        //Check if this key is still authenticated
+        const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches/${cache.id}`, {
+            method: "GET",
+            headers: {
+                "authorization": `Bearer ${getCookie("iglu-session")}`
+            }
+        })
+        if(!response.ok){
+            //Delete the cookie and redirect to login page
+            deleteCookie("iglu-session");
+            window.location.href = "/";
+            return
+        }
+        //Refetch the keys
+        fetchKeys()
+    }
     useEffect(() => {
         fetchKeys()
     }, []);
+    useEffect(() => {
+        fetchKeys()
+    }, [cache]);
     return(
         <Card>
             <CardHeader>

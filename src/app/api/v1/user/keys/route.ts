@@ -119,10 +119,9 @@ export async function PATCH(request:NextRequest){
     if(!authHeader.startsWith("Bearer ")){
         return NextResponse.json({error: "Unauthorized"}, {status: 401});
     }
-
     const apiKey = authHeader.split(" ")[1];
 
-    if(!apiKey || !apiKey.startsWith("Bearer ")){
+    if(!apiKey || !authHeader.startsWith("Bearer ")){
         return NextResponse.json({error: "Unauthorized"}, {status: 401});
     }
 
@@ -147,9 +146,9 @@ export async function PATCH(request:NextRequest){
     const db = new Database();
     let status = 200;
     let data = {};
-
     try{
-
+        await db.expandKey(body.cache_id, body.keys);
+        data= {message: "Key updated"};
     }
     catch(err){
         console.log(err)
@@ -158,4 +157,55 @@ export async function PATCH(request:NextRequest){
     }
     await db.close();
     return NextResponse.json(data, {status: status});
+}
+
+export async function DELETE(request:NextRequest){
+    //Verify the request
+    const authHeader = request.headers.get("Authorization");
+    if(!authHeader){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+    if(!authHeader.startsWith("Bearer ")){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+    const apiKey = authHeader.split(" ")[1];
+    if(!apiKey){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+
+    //Get the keyID from the request param
+    const keyID = request.nextUrl.searchParams.get("key");
+
+    //Get the cacheID from the request param
+    const cacheID = request.nextUrl.searchParams.get("cache");
+
+    if(!keyID || !cacheID){
+        return NextResponse.json({error: "Key and Cache ID is required"}, {status: 400});
+    }
+
+    //Check how many keys are associated with the cache provided, if there is only one key, then refuse the request
+    const db = new Database();
+    let body = {}
+    let status = 200
+    try{
+        const isAuthenticated = await db.checkKeyForCache(cacheID, apiKey);
+        if(!isAuthenticated){
+            throw new Error("Unauthorized");
+        }
+        //Delete the key
+        await db.removeKeyFromCache(cacheID, keyID);
+        body = {message: "Key deleted"};
+    }
+    catch(err){
+        console.log(err);
+        status = 400;
+        if(err.message === "Unauthorized"){
+            status = 401;
+            body = {error: "Unauthorized"};
+        }
+        else{
+            body = {error: "Bad Request"};
+        }
+    }
+    return NextResponse.json(body, {status: status});
 }

@@ -19,8 +19,12 @@ import {DataTable} from "@/components/custom/dataTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {Toaster} from "@/components/ui/sonner";
 import {toast} from "sonner";
-
-export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObject | null, cache: cache | null}){
+/*
+* This file is a mess. It needs to be reworked to be more readable and maintainable but for now here's what it contains:
+* - The Dialog box to create a new key
+* - The Dialog box to use an existing key
+* */
+export function UseExistingKey({userInfoObj, cache, closeParentDialog}: {userInfoObj: userInfoObject | null, cache: cache | null, closeParentDialog: () => void}) {
     const [keys, setKeys] = useState([]);
     useEffect(() => {
         async function fetchKeys() {
@@ -53,7 +57,6 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
             toast.error("Please select at least one key");
             return;
         }
-
         //Make the request to update the keys
         const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user/keys`, {
             method: 'PATCH',
@@ -70,7 +73,13 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
         if(!response.ok){
             const data = await response.json();
             toast.error(data.error);
+            closeParentDialog()
             return;
+        }
+        else{
+            const data = await response.json();
+            toast.success("Keys updated successfully");
+            closeParentDialog()
         }
     }
 
@@ -157,16 +166,18 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
                         </Alert>
                         : null
                 }
-                <Button variant="outline"
+                <DialogClose>
+                    <Button variant="outline"
                             className="w-full"
                             disabled={!(keys && keys.length > 0)}
                             onClick={()=>updateKeys()}
-                >
+                    >
 
 
                         <Copy />
-                        Use Key
-                </Button>
+                        Use Keys
+                    </Button>
+                </DialogClose>
             </DialogContent>
         </Dialog>
     )
@@ -227,6 +238,7 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
             setNewKey(null);
         }
         if(!open && newKey){
+            console.log("Dialog closed");
             //Refresh the keys if the dialog was closed
             refreshKeys();
         }
@@ -249,8 +261,15 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
             setEnabledCaches([...enabledCaches]);
         }
     }
+
+    function handleCloseDialog(){
+        console.log("Closing dialog");
+        refreshKeys();
+        setOpen(false);
+        setNewKey(null);
+    }
    return(
-       <Dialog onOpenChange={()=>{setOpen(!open)}}>
+       <Dialog open={open} onOpenChange={()=>{setOpen(!open)}}>
            <DialogTrigger>
                <Button>
                    <Pencil />
@@ -302,7 +321,7 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
                            </div>
                        </div>
                        <div className="grid grid-cols-2 gap-4 w-full">
-                           <UseExistingKey userInfoObj={userInfoObj} cache={cache} />
+                           <UseExistingKey userInfoObj={userInfoObj} cache={cache} closeParentDialog={()=>handleCloseDialog()} />
                            <Button onClick={createKey}>
                                <Pencil />
                                Create Key
