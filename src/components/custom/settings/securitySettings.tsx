@@ -99,7 +99,6 @@ export default function SecuritySettings({cache, userInfoObj}: {cache: cache | n
             }
         });
         const data = await response.json();
-        console.log(data)
         if(response.status === 200){
             setKeys(data);
         } else {
@@ -108,12 +107,8 @@ export default function SecuritySettings({cache, userInfoObj}: {cache: cache | n
     }
 
     useEffect(() => {
-        console.log(cache);
         fetchKeys()
     }, []);
-    useEffect(()=>{
-        console.log(keys);
-    }, [keys])
     return(
         <Card>
             <CardHeader>

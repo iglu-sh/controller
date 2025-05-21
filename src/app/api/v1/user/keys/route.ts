@@ -24,7 +24,11 @@ export async function GET(req:NextRequest){
     try{
 
         if(cacheId === "all"){
-            const caches = await db.getKeysForUser(apiKey);
+            const excludedCaches = req.nextUrl.searchParams.get("excluded");
+            if(!excludedCaches){
+                throw new Error("Excluded caches not found.");
+            }
+            const caches = await db.getKeysForUser(apiKey, excludedCaches);
             if(!caches){
                 status = 404;
                 data = {error: "No caches found"};
@@ -73,9 +77,10 @@ export async function POST(request:NextRequest){
         body = await request.json();
     }
     catch(err){
+        console.log(err);
         return NextResponse.json({error: "Bad Request"}, {status: 400});
     }
-
+    console.log(body.description)
     //Check if the body is valid
     if(!body.name){
         return NextResponse.json({error: "Name is required"}, {status: 400});
@@ -83,7 +88,7 @@ export async function POST(request:NextRequest){
     if(!body.cache_id || !Array.isArray(body.cache_id)){
         return NextResponse.json({error: "Cache ID is required"}, {status: 400});
     }
-    if(!body.description){
+    if(!body.description && body.description !== ""){
         return NextResponse.json({error: "Description is required"}, {status: 400});
     }
     //Create the key
@@ -113,6 +118,56 @@ export async function POST(request:NextRequest){
         data = {error: "Bad Request"};
     }
 
+    await db.close();
+    return NextResponse.json(data, {status: status});
+}
+
+export async function PATCH(request:NextRequest){
+    //Verify the request
+    const authHeader = request.headers.get("Authorization");
+    if(!authHeader){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+    if(!authHeader.startsWith("Bearer ")){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+
+    const apiKey = authHeader.split(" ")[1];
+
+    if(!apiKey || !apiKey.startsWith("Bearer ")){
+        return NextResponse.json({error: "Unauthorized"}, {status: 401});
+    }
+
+    //Get the body
+    let body;
+    try{
+        body = await request.json();
+    }
+    catch(err){
+        console.log(err);
+        return NextResponse.json({error: "Bad Request"}, {status: 400});
+    }
+    //Check if the body is valid
+    if(!body.cache_id){
+        return NextResponse.json({error: "Cache ID is required"}, {status: 400});
+    }
+    if(!body.keys || !Array.isArray(body.keys) || body.keys.length === 0){
+        return NextResponse.json({error: "Keys are required"}, {status: 400});
+    }
+
+    //Update the key
+    const db = new Database();
+    let status = 200;
+    let data = {};
+
+    try{
+
+    }
+    catch(err){
+        console.log(err)
+        status = 400;
+        data = {error: "Bad Request"};
+    }
     await db.close();
     return NextResponse.json(data, {status: status});
 }

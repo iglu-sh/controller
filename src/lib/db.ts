@@ -241,11 +241,13 @@ export default class Database{
         return keys.rows;
     }
 
-    public async getKeysForUser(apiKey:string):Promise<key[]>{
+    public async getKeysForUser(apiKey:string, excludedCache:string):Promise<key[]>{
         const hash = this.getHashedKey(apiKey);
         const keys = await this.client.query(`
-            SELECT id, cache_id, name, description, created_at, permissions FROM cache.keys WHERE cache_id IN (SELECT cache_id FROM cache.keys WHERE hash = $1) AND hash != $1
-        `, [hash]);
+            SELECT id, cache_id, name, description, created_at, permissions 
+            FROM cache.keys 
+            WHERE cache_id IN (SELECT cache_id FROM cache.keys WHERE hash = $1) AND cache_id != $2 AND hash != $1
+        `, [hash, excludedCache]);
         return keys.rows
     }
 
@@ -258,4 +260,5 @@ export default class Database{
 
         return key;
     }
+
 }

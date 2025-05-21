@@ -52,8 +52,10 @@ export default function Settings(){
 
     useEffect(() => {
         const id = searchParams.get("cache");
+        console.log('Search params updated', id)
         if (id) {
             setId(id);
+            wrap()
         } else {
             setId("all");
         }
@@ -76,21 +78,23 @@ export default function Settings(){
                     }
                 </div>
             </div>
-            <Tabs defaultValue="general" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="storage">Storage</TabsTrigger>
-                    <TabsTrigger value="network">Network</TabsTrigger>
-                    <TabsTrigger value="security">Security</TabsTrigger>
-                    <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-                </TabsList>
-                <TabsContent value="general"><GeneralSettings /></TabsContent>
-                <TabsContent value="storage"><StorageSettings /></TabsContent>
-                <TabsContent value="network">Nothing here yet :D</TabsContent>
-                <TabsContent value="security"><SecuritySettings userInfoObj={userData ? userData : null} cache={currentCache ? currentCache : null} /></TabsContent>
-                <TabsContent value="maintenance">Change your password here.</TabsContent>
-            </Tabs>
-
+            {
+                currentCache && id !== "all" ?
+                    <Tabs defaultValue="general" className="space-y-4">
+                        <TabsList>
+                            <TabsTrigger value="general">General</TabsTrigger>
+                            <TabsTrigger value="storage">Storage</TabsTrigger>
+                            <TabsTrigger value="network">Network</TabsTrigger>
+                            <TabsTrigger value="security">Security</TabsTrigger>
+                            <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="general"><GeneralSettings /></TabsContent>
+                        <TabsContent value="storage"><StorageSettings /></TabsContent>
+                        <TabsContent value="network">Nothing here yet :D</TabsContent>
+                        <TabsContent value="security"><SecuritySettings userInfoObj={userData ? userData : null} cache={currentCache ? currentCache : null} /></TabsContent>
+                        <TabsContent value="maintenance">Change your password here.</TabsContent>
+                    </Tabs> : <div>Settings for the Server aren't implemented yet! Choose a chache on the left side to edit settings for a specific cache!</div>
+            }
         </div>
     )
 }

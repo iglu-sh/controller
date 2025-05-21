@@ -24,7 +24,8 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
     const [keys, setKeys] = useState([]);
     useEffect(() => {
         async function fetchKeys() {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user/keys?cache=all`, {
+            if(!cache) return;
+            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user/keys?cache=all&excluded=${cache.id}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -36,15 +37,56 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
         }
         fetchKeys()
     }, []);
+
+    async function updateKeys(){
+        if(!cache) return;
+        let enabledKeys = []
+        for(let i = 0; i < keys.length; i++){
+            const checkbox = document.getElementById(`key:${keys[i].id}`) as HTMLInputElement;
+
+            if(checkbox.ariaChecked && checkbox.ariaChecked == "true"){
+                enabledKeys.push(keys[i].id);
+            }
+        }
+
+        if(enabledKeys.length === 0){
+            toast.error("Please select at least one key");
+            return;
+        }
+
+        //Make the request to update the keys
+        const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user/keys`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getCookie('iglu-session')}`
+            },
+            body: JSON.stringify({
+                cache_id: cache.id,
+                keys: enabledKeys
+            })
+        });
+
+        if(!response.ok){
+            const data = await response.json();
+            toast.error(data.error);
+            return;
+        }
+    }
+
     const columns = [
         {
             accessorKey: "",
             header: "Select",
             //@ts-ignore
             cell: ({row}) => {
+                const id = row.getValue("id");
                 return (
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="cache:1" defaultChecked={row.getValue("id") == cache?.id}/>
+                        <Checkbox
+                            defaultChecked={row.getValue("cache_id") == cache?.id}
+                            id={`key:${row.getValue("id")}`}
+                        />
                     </div>
                 );
             }
@@ -115,12 +157,16 @@ export function UseExistingKey({userInfoObj, cache}: {userInfoObj: userInfoObjec
                         </Alert>
                         : null
                 }
-                <DialogClose>
-                    <Button variant="outline" className="w-full" disabled={!(keys && keys.length > 0)}>
+                <Button variant="outline"
+                            className="w-full"
+                            disabled={!(keys && keys.length > 0)}
+                            onClick={()=>updateKeys()}
+                >
+
+
                         <Copy />
                         Use Key
-                    </Button>
-                </DialogClose>
+                </Button>
             </DialogContent>
         </Dialog>
     )
@@ -162,7 +208,7 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
             },
             body: JSON.stringify({
                 name: document.getElementById("key_name")?.value,
-                description: document.getElementById("key_description")?.value,
+                description: document.getElementById("key_description") ? document.getElementById("key_description")?.value : " ",
                 cache_id: enabledCaches
             })
         });
@@ -176,7 +222,6 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
     }
 
     useEffect(() => {
-        console.log('open', open);
         if(open){
             //Shred the key if the dialog was opened
             setNewKey(null);
@@ -191,7 +236,6 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
     }, [open]);
 
     function handleToggleCheckboxes(id:number, event){
-        console.log('handleToggleCheckboxes', id);
 
         //Check if this ID is already in the array
         const index = enabledCaches.indexOf(id);
@@ -245,7 +289,9 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
                                    userInfoObj?.caches.map((cacheInner)=>{
                                        return(
                                            <div className="flex flex-row gap-2 align-center items-center" key={cacheInner.id}>
-                                               <Checkbox id="cache:1" defaultChecked={cacheInner.id == cache.id} onClick={(event)=>{
+                                               <Checkbox id={`cache:${cacheInner.id}`}
+                                                         defaultChecked={cacheInner.id == cache.id}
+                                                         onClick={(event)=>{
                                                     handleToggleCheckboxes(cacheInner.id, event)
                                                }}/>
                                                <Label htmlFor={`cache:${cacheInner.id}`}>Cache <span className="text-green-500">{cacheInner.name}</span></Label>
