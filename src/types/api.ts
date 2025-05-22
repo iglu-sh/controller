@@ -6,7 +6,6 @@ export type cache = {
     permission: string,
     preferredcompressionmethod: string,
     publicsigningkeys: string,
-    allowedkeys: string[],
     uri: string,
     priority: number
     problems: problem[]
@@ -75,4 +74,13 @@ export type userInfoObject = {
     topRequestedHashes: Array<topRequestHashType>,
     biggestCaches: Array<{cache:number, size:number}>,
     hashCount: number,
+}
+
+export type key = {
+    id: number,
+    cache_id: number,
+    created_at: string,
+    permissions: string,
+    name: string,
+    description: string,
 }

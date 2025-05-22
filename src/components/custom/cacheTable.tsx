@@ -90,6 +90,13 @@ const columns: ColumnDef<Cache>[] = [
         size: 100,
         cell: ({row})=>{
             const keys = row.getValue("publicsigningkeys")
+            if(!keys){
+                return(
+                    <div className="flex flex-row">
+                       No Keys Yet!
+                    </div>
+                )
+            }
             //Cut the keys to 20 characters
             return (
                 <div style={{display: "flex", flexDirection:"row"}}>{keys.slice(0, 20)}...

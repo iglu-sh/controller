@@ -8,7 +8,7 @@ in
 buildBunApplication {
   src = ../../..;
 
-  nodeModuleHash = if isX86_64 then "sha256-iJfo8sXM/CJ9rVaDRNlYVGvCziYYFDtzfSrAns1oOH4=" else "sha256-ct6pS4kpiiT/kxbesaXhMgRlq2ymL3ht4sOKvjHewns=";
+  nodeModuleHash = if isX86_64 then "sha256-3xADL5KNUwkhUqCpeDDob8I3QlMnqea4vFyXY5dR8Z8=" else "sha256-mHTWjjcjdwH6UoBoPeEYFccpaWIvuhq4piGJ+Z9xPCQ=";
 
   bunExtraArgs = "--bun";
   bunScript = "start";

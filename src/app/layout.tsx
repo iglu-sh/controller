@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import {ThemeProvider} from "@/components/theme-provider";
+import { Suspense} from "react";
 
 const geistSans = localFont({
   src: '../../public/Geist-Regular.ttf',
@@ -34,7 +35,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
       >
-          {children}
+          <Suspense>
+              {children}
+          </Suspense>
       </ThemeProvider>
       </body>
     </html>
