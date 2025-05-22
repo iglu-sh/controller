@@ -8,6 +8,11 @@ on:
 jobs:
   check_build:
     runs-on: ubuntu-latest 
+    strategy:
+      matrix:
+        system:
+          - "x86_64-linux"
+          - "aarch64-linux"
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -20,8 +25,5 @@ jobs:
             extra-platforms = aarch64-linux
             extra-sandbox-paths = /usr/bin
       - name: "Build docker"
-        run: |
-          for system in x86_64-linux aarch64-linux; do
-            nix build .#packages.$system.iglu-controller-docker
-          done
+        run: nix build .#packages.${{ matrix.system }}.iglu-controller-docker
 
