@@ -32,7 +32,7 @@ import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/compon
 import {cacheInfoObject, userInfoObject} from "@/types/api";
 import {useSearchParams} from "next/navigation";
 import {Card, CardHeader} from "@/components/ui/card";
-
+import {Suspense} from "react";
 export default function CacheOverviewPageLayout(
     {children}: Readonly<{
         children: React.ReactNode;
@@ -59,7 +59,6 @@ export default function CacheOverviewPageLayout(
                 window.location.href = "/"
             }
             const data = await response.json();
-            console.log(data)
             setCaches(data);
             //Get the current cache
             const id = searchParams.get("cache");
