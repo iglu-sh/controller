@@ -19,6 +19,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Checkbox} from "@/components/ui/checkbox";
 import CreateNewKey from "@/components/custom/settings/security/createNewKey";
 import DeleteDialogue from "@/components/custom/settings/security/deleteDialogue";
+import {Switch} from "@/components/ui/switch";
 
 
 export default function SecuritySettings({cache, userInfoObj}: {cache: cache | null, userInfoObj:userInfoObject | null}) {
@@ -133,14 +134,26 @@ export default function SecuritySettings({cache, userInfoObj}: {cache: cache | n
         <Card>
             <CardHeader>
                 <CardTitle>Security Settings</CardTitle>
-                <CardDescription>Configure basic cache settings</CardDescription>
+                <CardDescription>Configure Security settings</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col gap-4">
-                    Configured API Keys
-                    <DataTable columns={keysColumns} data={keys ? keys : []} />
-                    <div className="flex flex-col gap-4 align-end justify-end items-end">
-                        <CreateNewKey userInfoObj={userInfoObj} cache={cache} refreshKeys={()=>fetchKeys()}/>
+                <div className="flex flex-col gap-4 w-full">
+                    <div className="grid grid-cols-2 gap-4">
+                       <Label>
+                           Public Cache (Not implemented yet)
+                       </Label>
+                        <div className="items-end justify-end flex">
+                            <Switch disabled checked={true}></Switch>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-4 w-full">
+                        <Label>
+                            Configured API Keys
+                        </Label>
+                        <DataTable columns={keysColumns} data={keys ? keys : []} />
+                        <div className="flex flex-col gap-4 align-end justify-end items-end">
+                            <CreateNewKey userInfoObj={userInfoObj} cache={cache} refreshKeys={()=>fetchKeys()}/>
+                        </div>
                     </div>
                 </div>
             </CardContent>

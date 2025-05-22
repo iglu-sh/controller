@@ -35,6 +35,20 @@ export default class Database{
         await this.client.end();
     }
 
+    async updateCache(id:string, cache:cache){
+        //Check if a cache with that name exists
+        const check = await this.client.query(`
+            SELECT * FROM cache.caches WHERE name = $1
+        `, [cache.name]);
+        if(check.rows.length > 0 && check.rows[0].id.toString() !== id){
+            throw new Error("-1")
+        }
+
+        await this.client.query(`
+            UPDATE cache.caches SET (name, githubusername, ispublic, preferredcompressionmethod, priority) = ($1, $2, $3, $4, $5) WHERE id = $6;
+        `, [cache.name, cache.githubusername, cache.ispublic, cache.preferredcompressionmethod, cache.priority, id]);
+    }
+
     async getCachesForKey(key: string):Promise<cache[]>{
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`

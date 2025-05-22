@@ -270,7 +270,7 @@ export default function CreateNewKey({userInfoObj, cache, refreshKeys}: {userInf
     }
    return(
        <Dialog open={open} onOpenChange={()=>{setOpen(!open)}}>
-           <DialogTrigger>
+           <DialogTrigger asChild>
                <Button>
                    <Pencil />
                    Create New Key

@@ -9,10 +9,13 @@ import {useEffect, useState} from "react";
 import {cache, userInfoObject} from "@/types/api";
 import {useSearchParams} from "next/navigation";
 import {getCookie} from "cookies-next";
+import MaintenanceSettings from "@/components/custom/settings/maintenanceSettings";
+import SaveDialogue from "@/components/custom/settings/saveDialogue";
 
 export default function Settings(){
     const [userData, setUserData] = useState<userInfoObject | null>(null);
     const [currentCache, setCurrentCache] = useState<cache | null>();
+    const [originalCurrentCache, setOriginalCurrentCache] = useState<cache | null>();
     const [id, setId] = useState<string>("all");
     const searchParams = useSearchParams()
     async function wrap(){
@@ -39,6 +42,7 @@ export default function Settings(){
             const cache = data.caches.filter((item)=> item.id == id);
             if(cache[0]) {
                 setCurrentCache(cache[0]);
+                setOriginalCurrentCache(cache[0]);
             } else {
                 setCurrentCache(null);
             }
@@ -67,10 +71,7 @@ export default function Settings(){
                     Settings
                 </h1>
                 <div className="flex w-full items-end justify-end">
-                    <Button>
-                        <SaveIcon />
-                        Save Changes
-                    </Button>
+                    <SaveDialogue oldCache={originalCurrentCache} newCache={currentCache} />
                 </div>
                 <div className="flex flex-col gap-4">
                     {
@@ -88,11 +89,11 @@ export default function Settings(){
                             <TabsTrigger value="security">Security</TabsTrigger>
                             <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="general"><GeneralSettings /></TabsContent>
-                        <TabsContent value="storage"><StorageSettings /></TabsContent>
+                        <TabsContent value="general"><GeneralSettings cache={currentCache} setCacheCallback={(cache:cache)=>setCurrentCache(cache)}/></TabsContent>
+                        <TabsContent value="storage"><StorageSettings cache={currentCache} setCacheCallback={(cache:cache)=>setCurrentCache(cache)} /></TabsContent>
                         <TabsContent value="network">Nothing here yet :D</TabsContent>
-                        <TabsContent value="security"><SecuritySettings userInfoObj={userData ? userData : null} cache={currentCache ? currentCache : null} /></TabsContent>
-                        <TabsContent value="maintenance">Change your password here.</TabsContent>
+                        <TabsContent value="security"><SecuritySettings userInfoObj={userData ? userData : null} cache={currentCache ? currentCache : null}/></TabsContent>
+                        <TabsContent value="maintenance"><MaintenanceSettings cache={currentCache} userInfoObj={userData} /></TabsContent>
                     </Tabs> : <div>Settings for the Server aren't implemented yet! Choose a chache on the left side to edit settings for a specific cache!</div>
             }
         </div>

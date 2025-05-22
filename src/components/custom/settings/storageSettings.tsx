@@ -12,9 +12,10 @@ import {
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {Alert, AlertTitle} from "@/components/ui/alert";
 import {Package} from "lucide-react";
+import type {cache} from "@/types/api";
 
+export default function StorageSettings({cache, setCacheCallback}:{cache:cache, setCacheCallback:(cache:cache)=>void}){
 
-export default function StorageSettings(){
     return(
         <Card>
             <CardHeader>
@@ -27,6 +28,7 @@ export default function StorageSettings(){
                     <Input
                         id="storage-location"
                         disabled
+                        defaultValue={`BASE_PATH/${cache.name}`}
                     />
                 </div>
                 <div className="space-y-2">
@@ -35,6 +37,7 @@ export default function StorageSettings(){
                         id="max-storage"
                         type="number"
                         disabled
+                        defaultValue={`unknown`}
                     />
                 </div>
                 <div className="space-y-2">
@@ -53,9 +56,13 @@ export default function StorageSettings(){
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <Select>
+                    <Select onValueChange={(value)=>{
+                        const cacheCopy = {...cache};
+                        cacheCopy.preferredcompressionmethod = value;
+                        setCacheCallback(cacheCopy);
+                    }}>
                         <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Compression Algorithm"></SelectValue>
+                            <SelectValue placeholder={cache.preferredcompressionmethod}></SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="XZ">XZ</SelectItem>
