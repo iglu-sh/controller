@@ -44,13 +44,13 @@
       "locked": {
         "lastModified": 1747769083,
         "narHash": "sha256-zu254BoboR8ZJl/JOBHW/77Pvfrf8ba3RAMPMYLcrvM=",
-        "owner": "iglu-api",
+        "owner": "iglu-sh",
         "repo": "flake",
         "rev": "d9ca6b5d77b33ce20a0906b7c1491b792777bab5",
         "type": "github"
       },
       "original": {
-        "owner": "iglu-api",
+        "owner": "iglu-sh",
         "ref": "d9ca6b5d77b33ce20a0906b7c1491b792777bab5",
         "repo": "flake",
         "type": "github"

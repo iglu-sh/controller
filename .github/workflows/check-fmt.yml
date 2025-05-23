@@ -14,5 +14,5 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: "Check nix stuff"
-        run: nix shell github:iglu-api/flake#flakecheck --command flakecheck
+        run: nix shell github:iglu-sh/flake#flakecheck --command flakecheck
 
