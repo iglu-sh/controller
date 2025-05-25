@@ -90,6 +90,19 @@ const columns:ColumnDef<derivation> = [
         }
     },
     {
+        header: "Added",
+        accessorKey: "updatedat",
+        cell:({row})=>{
+            const updatedat = row.getValue("updatedat");
+            const date = new Date(updatedat);
+            return (
+                <div>
+                    {date.toLocaleDateString()}
+                </div>
+            )
+        }
+    },
+    {
         header: "Hits",
         accessorKey: "hits",
         cell:({row})=>{
@@ -119,7 +132,7 @@ const columns:ColumnDef<derivation> = [
                     <Button variant="destructive">Delete</Button>
             )
         }
-    }
+    },
 ]
 
 
