@@ -84,3 +84,23 @@ export type key = {
     name: string,
     description: string,
 }
+
+export type derivation = {
+    id: number,
+    path: string,
+    cache: number,
+    updatedat: Date,
+    cderiver: string,
+    cfilehash: string,
+    cfilesize: string,
+    cnarhash: string,
+    cnarsize: string,
+    creferences: Array<string>,
+    csig: string,
+    cstorehash: string,
+    cstoresuffix: string,
+    parts: Array<{eTag:string, partNumber:number}>,
+    compression: 'xz' | 'zstd',
+    last_accessed: null | Date,
+    hits: string
+}

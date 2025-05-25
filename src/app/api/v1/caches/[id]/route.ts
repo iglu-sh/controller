@@ -71,10 +71,9 @@ export async function PATCH(request:NextRequest, {params}: { params: { id: strin
         !body.name
         || !body.id
         || !body.preferredcompressionmethod
-        || !body.githubusername
+        || (!body.githubusername && body.githubusername !== "")
         || !body.ispublic
         || !body.permission
-        || (!body.publicsigningkeys && body.publicsigningkeys !== "")
         || !body.uri
         || !body.priority
     ){

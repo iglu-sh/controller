@@ -58,7 +58,6 @@ export default class Database{
                 INNER JOIN cache.caches c ON c.id = cache_key.cache_id 
             WHERE hash = $1
         `, [hash]);
-        console.log(res.rows)
         return res.rows;
     }
 
@@ -373,6 +372,44 @@ export default class Database{
             await this.client.query(`
                 DELETE FROM cache.keys WHERE id = $1
             `, [key]);
+        }
+    }
+
+    public async getDerivationsForCache(cache_id:string, offset:number, apiKey:string){
+
+        //Check if the cache_id is "all", if so we need to get all the caches this user has access too
+        let caches = [cache_id]
+        if(cache_id === "all"){
+            caches = await this.getCachesForKey(apiKey).then((res)=>{
+                console.log(res)
+                return res.map((cache) => cache.id);
+            });
+        }
+        console.log('Caches to get derivations for:', caches);
+        const res = await this.client.query(`
+            SELECT hashes.*, (SELECT time
+                              FROM cache.request
+                              WHERE request.hash = hashes.id AND request.type = 'outbound'
+                                AND request.cache_id = ANY($1)
+                              LIMIT 1) as last_accessed, count(r.hash) as hits FROM cache.hashes
+            LEFT JOIN cache.request r on hashes.id = r.hash
+                AND r.type = 'outbound'
+                AND hashes.cache = ANY($1)
+                AND r.cache_id = ANY($1)
+            GROUP BY hashes.id
+            ORDER BY hashes.cache, hashes.id
+            OFFSET $2
+            LIMIT 50;
+        `, [caches, offset]);
+
+        //Get count of all hashes store in that cache
+        const count = await this.client.query(`
+            SELECT count(*) as count FROM cache.hashes WHERE cache = ANY($1);
+        `, [caches]);
+
+        return {
+            hashes: res.rows,
+            totalCount: count.rows[0].count
         }
     }
 }
