@@ -16,7 +16,7 @@ import {
     BarChartIcon,
     ChartScatterIcon,
     ChevronDown,
-    Database, Dot, Globe,
+    Database, Dot, Globe, Hammer,
     HardDriveIcon,
     HomeIcon,
     Package,
@@ -152,13 +152,19 @@ export default function CacheOverviewPageLayout(
                                 Stored Paths
                             </Button>
                         </Link>
+                        <Link href={`/app/builders?cache=${id}`}>
+                            <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
+                                <Hammer className="mr-2 h-4 w-4" />
+                                Builders
+                            </Button>
+                        </Link>
                         <Link href={`/app/caches?cache=${id}`}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <Database className="mr-2 h-4 w-4" />
                                 Caches
                             </Button>
                         </Link>
-                        <Link href={`app/performance?cache=${id}`}>
+                        <Link href={`app/performance?cache=${id}`} aria-disabled={true}>
                             <Button variant="ghost" className="flex items-center justify-start pl-5 w-full">
                                 <BarChartIcon className="mr-2 h-4 w-4" />
                                 Performance
