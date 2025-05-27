@@ -37,7 +37,7 @@ export default function DeleteDialogue({keys, keyID, cacheID, deletedKeyCallback
     }
     return (
         <Dialog onOpenChange={()=>{setOpen(!open)}} open={open}>
-            <DialogTrigger disabled={!keys || keys.length <= 1}>
+            <DialogTrigger disabled={!keys || keys.length <= 1} asChild>
                 <Button variant="destructive" disabled={!keys || keys.length <= 1 }><X /></Button>
             </DialogTrigger>
             <DialogContent>

@@ -21,10 +21,7 @@ import {Toaster} from "@/components/ui/sonner";
 
 
 
-export default function SaveDialogue({oldCache, newCache}:{oldCache:cache | undefined, newCache:cache | undefined}){
-    if(!oldCache || !newCache){
-        return null
-    }
+export default function SaveDialogue({oldCache, newCache}:{oldCache:cache, newCache:cache}){
     const [configIsValid, setConfigIsValid] = useState(false);
     const [invalidKeys, setInvalidKeys] = useState<string[]>([]);
     useEffect(() => {

@@ -104,3 +104,40 @@ export type derivation = {
     last_accessed: null | Date,
     hits: string
 }
+
+export type builderRun = {
+    status: 'success' | 'failure' | 'running',
+    time: Date,
+    gitCommit: string,
+    duration: number, // in seconds
+}
+
+export type builder = {
+    id: number,
+    name: string,
+    description: string,
+    runs: Array<builderRun>,
+    repository: string,
+    branch: string,
+    gitUsername: string,
+    gitKey: string,
+    enabled: boolean,
+    trigger: 'manual' | 'cron' | 'webhook',
+    schedule: string,
+    buildOptions: {
+        cores: number,
+        maxJobs: number,
+        keep_going: boolean,
+        extraArgs: string,
+        substituters: Array<string>,
+        trustedPublicKeys: Array<string>,
+        command:string
+        cachix: {
+            push: boolean,
+            target: string,
+            apiKey: string,
+            signingKey: string,
+            cachixPushSourceDir: string,
+        }
+    }
+}

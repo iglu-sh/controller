@@ -15,7 +15,7 @@ import {Package} from "lucide-react";
 import type {cache} from "@/types/api";
 
 export default function StorageSettings({cache, setCacheCallback}:{cache:cache, setCacheCallback:(cache:cache)=>void}){
-
+    console.log(cache)
     return(
         <Card>
             <CardHeader>

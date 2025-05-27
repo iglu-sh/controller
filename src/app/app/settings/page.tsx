@@ -71,7 +71,11 @@ export default function Settings(){
                     Settings
                 </h1>
                 <div className="flex w-full items-end justify-end">
-                    <SaveDialogue oldCache={originalCurrentCache} newCache={currentCache} />
+                    {
+                        currentCache && originalCurrentCache ?
+                            <SaveDialogue oldCache={originalCurrentCache} newCache={currentCache} />
+                            : null
+                    }
                 </div>
                 <div className="flex flex-col gap-4">
                     {
