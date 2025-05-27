@@ -10,6 +10,7 @@ import {Toaster} from "@/components/ui/sonner";
 import {toast} from "sonner";
 import {Button} from "@/components/ui/button";
 import {Plus} from "lucide-react";
+import Link from "next/link";
 
 const columns:ColumnDef<builder> = [
     {
@@ -36,6 +37,7 @@ export default function Builder(){
     async function fetchBuilders() {
         if(!searchParams.has('cache') || searchParams.get('cache') === "all"){
             //Fetch every cache this user has access too and redirect him to the first one
+            console.log('Fetching user data to get caches...')
             const userData = await fetch(`/api/v1/user`, {
                 method: 'GET',
                 headers: {
@@ -52,7 +54,6 @@ export default function Builder(){
                 return
             }
             window.location.href = `/app/builders?cache=${user.caches[0].id}`;
-            return
         }
 
         //Fetch the builders for the current cache
@@ -78,10 +79,12 @@ export default function Builder(){
                             <div className="col-span-3 items-center flex">
                                 This section allows you to create, edit, and manage your builders.
                             </div>
-                            <Button>
-                                <Plus />
-                                Create New Builder
-                            </Button>
+                            <Link href={"/app/builders/create"}>
+                                <Button>
+                                    <Plus />
+                                    Create New Builder
+                                </Button>
+                            </Link>
                         </div>
                     </CardDescription>
                 </CardHeader>
