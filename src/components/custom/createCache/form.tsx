@@ -21,10 +21,14 @@ import {useEffect, useRef, useState} from "react";
 import { getCookie } from "cookies-next";
 import {Toaster} from "@/components/ui/sonner";
 import {toast} from "sonner";
+import {CacheCreationRequest, FrontendKey, PublicSigningKey} from "@/types/frontend";
 export function CreationForm(){
     const [compression, setCompression] = useState("xz")
-    const [availablePublicKeys, setAvailablePublicKeys] = useState<string[]>([])
-    const [selectedPublicKey, setSelectedPublicKey] = useState<string>("_")
+    const [availablePublicKeys, setAvailablePublicKeys] = useState<FrontendKey[]>([])
+    //Stores the currently selected public key **id** the actual value is in the format `cacheID:publicKeyID`
+    const [selectedPublicSelectID, setSelectedPublicSelectID] = useState<string>("_:_")
+    const [selectedPublicKey, setSelectedPublicKey] = useState<PublicSigningKey>({"id": "_", name:"Add your own later", "key": "", "description": "", "created_at": new Date()})
+
     //Fetch initial props
     useEffect(()=>{
         const apiKey = getCookie("iglu-session")
@@ -92,21 +96,22 @@ export function CreationForm(){
         const headers = new Headers()
         headers.append("Authorization", `Bearer ${apiKey}`)
         headers.append("Content-Type", "application/json")
-        const requestOptions = {
+        const requestObject:CacheCreationRequest = {
+            name: name,
+            githubUsername: githubUsername,
+            public: isPublic,
+            compression: compression,
+            priority: parseInt(priority),
+            enableBuilder: false,
+            publicSigningKey: selectedPublicKey.id.toString() == "_" ? -1 : parseInt(selectedPublicKey.id.toString())
+        }
+
+        await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({
-                name: name,
-                githubUsername: githubUsername,
-                isPublic: isPublic,
-                priority: parseInt(priority),
-                enableBuilder: false,
-                compression: compression,
-                publicSigningKey: selectedPublicKey == '_' ? '' : selectedPublicKey
-            }),
+            body: JSON.stringify(requestObject),
             redirect: 'follow'
-        }
-        await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, requestOptions).then((response) => {
+        }).then((response) => {
             if(response.status === 201){
                 toast.success("Cache created successfully")
                 window.location.href = "/app/caches"
@@ -125,8 +130,27 @@ export function CreationForm(){
     }
 
     function handlePublicKeyChange(value) {
-        console.log(value)
-        setSelectedPublicKey(value)
+        setSelectedPublicSelectID(value)
+
+        //Find the public key in the availablePublicKeys array
+        const [cacheID, publicKeyID] = value.split(":");
+        if(cacheID === "_" && publicKeyID === "_"){
+            //If the value is "_:_", set the selectedPublicKey to the default value
+            setSelectedPublicKey({ id: "_", name: "Add your own later", publicsigningkeys: [{id: "_", name: "Add your own later", key: "", description: "", created_at: new Date()}] })
+            return
+        }
+        const cache = availablePublicKeys.find(key => key.id == cacheID);
+        if(!cache){
+            toast.error("Cache not found")
+            return
+        }
+
+        const publickey = cache.publicsigningkeys.find(key => key.id == publicKeyID);
+        if(!publickey){
+            toast.error("Public key not found")
+            return
+        }
+        setSelectedPublicKey(publickey);
     }
     return(
         <form className="form" onSubmit={handleSubmit}>
@@ -201,12 +225,15 @@ export function CreationForm(){
                         <SelectContent >
                             {
                                 availablePublicKeys ? availablePublicKeys.map((key, index) => {
-                                    return (
-                                        <SelectItem key={index} value={key.key}>Cache: {key.name}</SelectItem>
-                                    )
+                                    console.log(key)
+                                    return key.publicsigningkeys.map((k, index)=>{
+                                        return (
+                                            <SelectItem value={`${key.id}:${k.id}`} key={index}>({key.name}): {k.name}</SelectItem>
+                                        )
+                                    })
                                 }) : null
                             }
-                            <SelectItem value="_">Add your own later</SelectItem>
+                            <SelectItem value="_:_">Add your own later</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

@@ -1,6 +1,7 @@
 import {Client} from "pg";
 import 'dotenv/config'
 import {cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
+import {CacheCreationRequest, FrontendKey} from "@/types/frontend";
 
 export default class Database{
     client: Client;
@@ -61,7 +62,7 @@ export default class Database{
         return res.rows;
     }
 
-    async createCache(info:cacheCreationObject, owner:string):Promise<cache>{
+    async createCache(info:CacheCreationRequest, owner:string):Promise<cache>{
 
         //Check if the cache already exists
         const check = await this.client.query(`
@@ -73,28 +74,30 @@ export default class Database{
 
         const createdCache = await this.client.query(`
         INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri, priority)
-        VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
         `,
-        [info.githubUsername, info.isPublic, info.name, "Read", info.compression.toUpperCase(), process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
+        [info.githubUsername, info.public, info.name, "Read", info.compression.toUpperCase(), process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
 
         if(!createdCache.rows || createdCache.rows.length === 0){
             throw new Error("Error creating cache")
         }
 
-        //Create the key in the keys table
-        const key = this.getHashedKey(owner);
-        const cacheId = createdCache.rows[0].id;
-        const keyResult = await this.client.query(`
-            SELECT * FROM cache.keys WHERE hash = $1
-        `, [key]);
-        if(!keyResult.rows || keyResult.rows.length === 0){
-            throw new Error("Error creating key")
+        //Create the key in the keys table (but only if the publickey is not -1, which indicates that the user chose not to use an existing one)
+        if(info.publicSigningKey == -1){
+            const key = this.getHashedKey(owner);
+            const cacheId = createdCache.rows[0].id;
+            const keyResult = await this.client.query(`
+                SELECT * FROM cache.keys WHERE hash = $1
+            `, [key]);
+            if(!keyResult.rows || keyResult.rows.length === 0){
+                throw new Error("Error creating key")
+            }
+            const keyId = keyResult.rows[0].id;
+            await this.client.query(`
+                INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
+            `, [cacheId, keyId]);
         }
-        const keyId = keyResult.rows[0].id;
-        await this.client.query(`
-            INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
-        `, [cacheId, keyId]);
         return {
             id: createdCache.rows[0].id,
             name: createdCache.rows[0].name,
@@ -109,10 +112,10 @@ export default class Database{
         }
     }
 
-    async getPublicSigningKeysForKey(key:string){
+    async getPublicSigningKeysForKey(key:string):Promise<FrontendKey[]>{
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`
-            SELECT array_agg(psk.key) as publicsigningkeys, caches.name 
+            SELECT json_agg(psk.*) as publicsigningkeys, caches.name, caches.id 
             FROM cache.caches
                      INNER JOIN cache.cache_key ON caches.id = cache_key.cache_id
                      INNER JOIN cache.keys ON cache_key.key_id = keys.id
@@ -124,8 +127,9 @@ export default class Database{
         if(res.rows.length === 0){
             return []
         }
+        console.log(res.rows[0])
         return res.rows.map((row)=>{
-            return {"name":row.name, "key": row.publicsigningkeys};
+            return {"name":row.name, "publicsigningkeys": row.publicsigningkeys, "id": row.id} as FrontendKey;
         });
     }
 

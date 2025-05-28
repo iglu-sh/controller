@@ -2,6 +2,8 @@ import {NextResponse, NextRequest} from "next/server";
 import Database from '@/lib/db'
 import 'dotenv/config'
 import {cacheCreationObject} from "@/types/api";
+import {Validator} from "jsonschema";
+import {CacheCreationRequest} from "@/types/frontend";
 export async function GET(request: NextRequest) {
   //Check if the request has an authorization bearer header
   if(!request.headers.has('authorization')) {
@@ -45,60 +47,36 @@ export async function POST(req: NextRequest){
   if(!req.headers.has("Content-Type") || req.headers.get("Content-Type") !== "application/json"){
     return NextResponse.json({error: "Invalid Content-Type"}, {status: 400})
   }
-  const body:cacheCreationObject = await req.json().catch((error)=>{
+  const body:CacheCreationRequest = await req.json().catch((error)=>{
     console.error(`Error parsing request body: ${error}`);
     return NextResponse.json({error: "Malformed request body"}, {status: 400});
   })
 
-  //Check if the request has a request body and if it has all the keys
-  if(!body ||
-      !body.name ||
-      !Object.keys(body.githubUsername) ||
-      !Object.keys(body).includes("priority")||
-      !body.priority ||
-      !Object.keys(body).includes("enableBuilder") ||
-      !body.compression ||
-      !Object.keys(body).includes("publicSigningKey")
-  ){
+  if(!body){
     return NextResponse.json({error: "Malformed request body"}, {status: 400})
+  }
+
+  //Validate the body against the schema
+  const schema = require('@/schema/api/cache/create.schema.json')
+  if(!schema){
+    console.error("Schema not found for cache creation");
+    return NextResponse.json({error: "Internal server error"}, {status: 500})
+  }
+
+  const validator = new Validator();
+  const validationResult = validator.validate(body, schema);
+  if(!validationResult.valid){
+      console.error(`Validation failed for cache creation request: ${validationResult.errors}`);
+      return NextResponse.json({error: "Invalid request body"}, {status: 400})
   }
 
   //Regex to find and replace all the sql injection characters (will be cut from the strings)
   const regex = /[;'"\\]/g;
 
 
-  //Now validate the values in the request body
-  if(typeof body.name !== "string"){
-    return NextResponse.json({error: "Cache name must be a string"}, {status: 400})
-  }
-
-  if(typeof body.githubUsername !== "string"){
-    return NextResponse.json({error: "Github username must be a string"}, {status: 400})
-  }
-
-  if(typeof body.publicSigningKey !== "string"){
-    return NextResponse.json({error: "Public signing key must be a string"}, {status: 400})
-  }
-  if(typeof body.isPublic !== "boolean"){
-  return NextResponse.json({error: "isPublic must be a boolean"}, {status: 400})
-  }
-
-  if(typeof body.compression !== "string" || (body.compression !== "XZ" && body.compression !== "ZSTD") ){
-    return NextResponse.json({error: "Compression must be either xz or zstd"}, {status: 400})
-  }
-
-  if(typeof body.priority !== "number" || body.priority < 0 || !parseInt(body.priority)){
-    return NextResponse.json({error: "Priority must be a positive number"}, {status: 400})
-  }
-
-  if(typeof body.enableBuilder !== "boolean"){
-    return NextResponse.json({error: "enableBuilder must be a boolean"}, {status: 400})
-  }
-
   //Replace all the sql injection characters
   body.name = body.name.replace(regex, "")
-  body.githubusername = body.githubUsername.replace(regex, "")
-  body.publicSigningKey = body.publicSigningKey.replace(regex, "")
+  body.githubUsername = body.githubUsername.replace(regex, "")
 
   const apiKey = req.headers.get("Authorization")?.split(" ")[1]
 
@@ -124,8 +102,7 @@ export async function POST(req: NextRequest){
       responseStatus = 500
     }
   }
-  catch(error){
-    console.log(error)
+  catch(error:any){
     if(error.message === "-1"){
       responseBody = {error: "Cache already exists"}
       responseStatus = 409
