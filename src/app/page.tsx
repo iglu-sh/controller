@@ -16,6 +16,7 @@ export default function Home() {
             toast("Please enter a valid API key")
             return
         }
+
         const apiKey = inputRef.current.value;
         const keepLoggedIn = keepLoggedInRef.current?.checked;
         const headers = new Headers()

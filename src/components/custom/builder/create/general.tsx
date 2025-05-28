@@ -11,6 +11,7 @@ import {Save} from "lucide-react";
 
 export default function General(){
     const [requiresAuth, setRequiresAuth] = useState(false);
+    const [buildOption, setBuildOption] = useState('manual');
     return(
         <div className="flex flex-col gap-4 w-full mt-3">
             <div className="flex flex-col space-y-2 w-full">
@@ -83,6 +84,45 @@ export default function General(){
                     Build Command
                 </label>
                 <Input type="text" placeholder="eg. nix-build default.nix or nix build .#my-derivation"/>
+            </div>
+            <div className="flex flex-col space-y-2">
+                <label>
+                    Build Trigger
+                </label>
+                <Select defaultValue="manual" onValueChange={(value)=> setBuildOption(value)}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select configuration type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="manual">Manual</SelectItem>
+                        <SelectItem value="cron">Cron</SelectItem>
+                        <SelectItem value="webhook">Webhook</SelectItem>
+                    </SelectContent>
+                </Select>
+                {
+                     buildOption === "cron" ? (
+                        <div className="flex flex-col space-y-2">
+                            <Input type="text" placeholder="Cron" required />
+                            <div className="text-muted-foreground text-sm col-span-2">
+                                Cron expression to run the build. For example, <strong>0 0 * * *</strong> will run the build every day at midnight.
+                            </div>
+                        </div>
+                    ) : null
+                }
+                {
+                    buildOption === "webhook" ? (
+                        <div className="text-muted-foreground text-sm col-span-2">
+                            This will generate a webhook URL that you can use to trigger the build. You can use this URL in your Git repository settings to trigger the build on push events.
+                        </div>
+                    ) : null
+                }
+                {
+                    buildOption === "manual" ? (
+                        <div className="text-muted-foreground text-sm col-span-2">
+                            With this option you'll only be able to run the build manually from the UI.
+                        </div>
+                    ) : null
+                }
             </div>
             <div className="flex flex-col space-y-2">
                 <label>
