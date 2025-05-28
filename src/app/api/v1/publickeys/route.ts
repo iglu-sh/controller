@@ -20,8 +20,10 @@ export async function GET(req:NextRequest){
         }
     }
     catch(err){
+        console.log(err)
+        status = 404;
        body = {error: "Error fetching public keys"}
     }
     await db.close()
-    return NextResponse.json(body, {status: 200})
+    return NextResponse.json(body, {status: status})
 }

@@ -72,11 +72,11 @@ export default class Database{
         }
 
         const createdCache = await this.client.query(`
-        INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, publicsigningkeys, uri, priority)
+        INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri, priority)
         VALUES($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *;
         `,
-        [info.githubUsername, info.isPublic, info.name, "Read", info.compression.toUpperCase(), info.publicSigningKey, process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
+        [info.githubUsername, info.isPublic, info.name, "Read", info.compression.toUpperCase(), process.env.NEXT_PUBLIC_CACHE_URL, info.priority])
 
         if(!createdCache.rows || createdCache.rows.length === 0){
             throw new Error("Error creating cache")
@@ -112,11 +112,15 @@ export default class Database{
     async getPublicSigningKeysForKey(key:string){
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`
-            SELECT publicsigningkeys, caches.name 
+            SELECT array_agg(psk.key) as publicsigningkeys, caches.name 
             FROM cache.caches
                      INNER JOIN cache.cache_key ON caches.id = cache_key.cache_id
                      INNER JOIN cache.keys ON cache_key.key_id = keys.id
-            WHERE keys.hash = $1 AND publicsigningkeys != \'\'`, [hash]);
+                     INNER JOIN cache.signing_key_cache_api_link skcal ON skcal.cache_id = caches.id
+                     INNER JOIN cache.public_signing_keys psk ON psk.id = skcal.signing_key_id
+            WHERE keys.hash = $1 AND psk.key != \'\'
+            GROUP BY caches.id;
+        `, [hash]);
         if(res.rows.length === 0){
             return []
         }
