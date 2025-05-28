@@ -135,7 +135,7 @@ export type builder = {
         extraArgs: string,
         substituters: Array<string>,
         trustedPublicKeys: Array<string>,
-        command:string
+        command:string,
         cachix: {
             push: boolean,
             target: string,
