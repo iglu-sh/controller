@@ -32,7 +32,6 @@
     "cmdk": "^1.1.1",
     "cookies-next": "^5.1.0",
     "dotenv": "^16.5.0",
-    "iglu-controller": ".",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",
     "next-themes": "^0.4.6",
