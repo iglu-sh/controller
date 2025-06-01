@@ -8,7 +8,7 @@ in
 buildBunApplication {
   src = ../../..;
 
-  nodeModuleHash = if isX86_64 then "sha256-3xADL5KNUwkhUqCpeDDob8I3QlMnqea4vFyXY5dR8Z8=" else "sha256-mHTWjjcjdwH6UoBoPeEYFccpaWIvuhq4piGJ+Z9xPCQ=";
+  nodeModuleHash = if isX86_64 then "sha256-/i/+tBwuG5gz4+8MRAzwliBDfISVnY1rkdjP75z83r4=" else "sha256-FvrT1L+5T9HkVmpadb4Z2KBaCQiXG9K1xFYbH0rhZlw=";
 
   bunExtraArgs = "--bun";
   bunScript = "start";
@@ -24,12 +24,7 @@ buildBunApplication {
   ];
 
   nodeModulesToKeep = [
-    "next"
-    "styled-jsx"
-    "@swc"
-    "@next"
-    "react"
-    "caniuse-lite"
+    "."
   ];
 
   nodeExecToKeep = [
