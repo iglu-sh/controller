@@ -136,6 +136,7 @@ export type builder = {
         substituters: Array<string>,
         trustedPublicKeys: Array<string>,
         command:string,
+        parellelBuilds: boolean, //If this is set to false, any running build that is not finished will be cancelled when a new build is started
         cachix: {
             push: boolean,
             target: string,
@@ -144,4 +145,44 @@ export type builder = {
             cachixPushSourceDir: string,
         }
     }
+}
+export type builderDatabaseRepresenation = {
+    name: string,
+    description: string,
+    git: {
+        repository: string,
+        branch: string,
+        gitUsername: string,
+        gitKey: string,
+        requiresAuth: boolean,
+        noClone: boolean,
+    },
+    enabled: boolean,
+    trigger: 'manual' | 'cron' | 'webhook',
+    schedule: string,
+    buildOptions: {
+        cores: number,
+        maxJobs: number,
+        keep_going: boolean,
+        extraArgs: string,
+        substituters: Array<string>,
+        trustedPublicKeys: Array<string>,
+        command:string,
+        parellelBuilds: boolean, //If this is set to false, any running build that is not finished will be cancelled when a new build is started
+        cachix: {
+            push: boolean,
+            target: string,
+            apiKey: {
+                id: number,
+                key: string
+            },
+            signingKey: {
+                id: number,
+                privateKey:string,
+                publicKey: string,
+            },
+            cachixPushSourceDir: string,
+        }
+    },
+    webhookURL: string,
 }

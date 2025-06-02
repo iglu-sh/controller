@@ -109,7 +109,7 @@ export default function Options(){
                 </div>
                 <div className="flex-col flex space-y-2">
                     <label>
-                        Max Jobs
+                        Cores
                     </label>
                     <Input defaultValue="2" />
                 </div>

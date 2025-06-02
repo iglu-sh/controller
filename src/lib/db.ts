@@ -1,7 +1,8 @@
 import {Client} from "pg";
 import 'dotenv/config'
-import {cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
+import {builderDatabaseRepresenation, cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
 import {CacheCreationRequest, FrontendKey} from "@/types/frontend";
+import {builderDatabase} from "@/types/db";
 
 export default class Database{
     client: Client;
@@ -10,7 +11,7 @@ export default class Database{
         console.log(process.env.DATABASE_URL)
         if(!process.env.DATABASE_URL){
             console.error('DATABASE_URL not set');
-            process.exit(1)
+            return
         }
 
         this.client = new Client(
@@ -22,10 +23,65 @@ export default class Database{
             console.log('Connected to database');
         }).catch((err) => {
             console.error('Error connecting to database', err);
-            process.exit(1);
+            throw new Error(`Error connecting to database ${err}`)
         });
     }
-
+    public async createFrontendTables(){
+        await this.client.query(`
+            CREATE TABLE IF NOT EXISTS cache.builder (
+                id serial NOT NULL UNIQUE primary key,
+                cache_id INTEGER NOT NULL CONSTRAINT builder_cache_fk REFERENCES cache.caches,
+                name TEXT NOT NULL,
+                description TEXT,
+                enabled bool NOT NULL,
+                trigger TEXT,
+                cron TEXT,
+                webhookURL TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS cache.git_configs (
+                id serial NOT NULL UNIQUE primary key,
+                builder_id INTEGER NOT NULL CONSTRAINT git_builder_fk REFERENCES cache.builder ON DELETE CASCADE,
+                repository TEXT,
+                branch TEXT,
+                gitUsername TEXT,
+                gitKey TEXT,
+                requiresAuth BOOL NOT NULL,
+                noClone BOOL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS cache.buildOptions (
+                id serial NOT NULL UNIQUE primary key,
+                builder_id INTEGER NOT NULL CONSTRAINT options_build_fk REFERENCES cache.builder ON DELETE CASCADE,
+                cores INTEGER,
+                maxJobs INTEGER,
+                keep_going BOOL,
+                extraArgs TEXT,
+                substituters TEXT NOT NULL DEFAULT 'https://cache.nixos.org',
+                trustedPublicKeys TEXT NOT NULL DEFAULT 'cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=',
+                parallelBuilds BOOL NOT NULL,
+                command TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS cache.cachixConfigs (
+                id serial NOT NULL UNIQUE primary key,
+                builder_id INTEGER NOT NULL CONSTRAINT options_build_fk REFERENCES cache.builder ON DELETE CASCADE ,
+                push BOOL NOT NULL,
+                target INTEGER NOT NULL CONSTRAINT cachix_target_fk REFERENCES cache.caches,
+                apiKey TEXT NOT NULL,
+                signingKey TEXT NOT NULL,
+                buildOutputDir TEXT NOT NULL
+            );
+            create table if not exists cache.builder_runs
+            (
+                id serial constraint builder_runs_pk primary key,
+                builder_id int constraint builder_fk references cache.builder ON DELETE CASCADE,
+                status text not null,
+                started_at timestamp default now() not null,
+                ended_at timestamp,
+                gitCommit text not null,
+                duration interval not null, -- in seconds
+                log text
+            )
+        `)
+    }
     private getHashedKey(key:string):string{
         const hasher = new Bun.CryptoHasher("sha512");
         hasher.update(key);
@@ -35,7 +91,11 @@ export default class Database{
         console.log('Database closed');
         await this.client.end();
     }
-
+    async connect(){
+        console.log('Connecting to database');
+        await this.client.connect();
+        console.log('Connected to database');
+    }
     async updateCache(id:string, cache:cache){
         //Check if a cache with that name exists
         const check = await this.client.query(`
@@ -133,6 +193,13 @@ export default class Database{
         });
     }
 
+    /*
+    * Gets the cache information for a given cacheID and API Key
+    * @param id - The ID of the cache to get information for.
+    * @param apiKey - The API key to authenticate the request.
+    * @return The cache information object containing the cache details.
+    * @throws Error if the cache is not found or if the API key is invalid / not associated with the cache.
+    * */
     public async getCacheById(id:string, apiKey:string){
         const hash = this.getHashedKey(apiKey);
         const res = await this.client.query(`
@@ -299,7 +366,22 @@ export default class Database{
         //If the key is found then return the keys
         return keys.rows;
     }
+    public async getKeyIDForKey(apiKey:string):Promise<string>{
+        const hash = this.getHashedKey(apiKey);
+        console.log(hash)
+        return await this.client.query(`
+            SELECT keys.id FROM cache.keys
+                WHERE keys.hash = $1;
+        `, [hash]).then((res)=>res.rows[0].id)
+    }
 
+    /*
+    * Gets all the keys a specific other api key has access too (via the cacheID)
+    * @param apiKey - The API key to check.
+    * @param excludedCache - The cache ID to exclude from the results.
+    * @returns An array of keys that the user has access to, excluding the specified cache.
+    * @throws ClientError if the sql statement fails
+    * */
     public async getKeysForUser(apiKey:string, excludedCache:string):Promise<key[]>{
         const hash = this.getHashedKey(apiKey);
         const keys = await this.client.query(`
@@ -312,15 +394,25 @@ export default class Database{
                 WHERE keys.hash = $1
             ) AND keys.hash != $1 AND cache_id != $2
 
-        `, [hash, excludedCache]);
+        `, [hash, excludedCache == '' ? -1 : excludedCache]);
         return keys.rows
     }
 
-    public async createKey(name:string, description:string, cache_id:Array<number>, key:string){
+    /*
+    * Creates a new API Key with the given name, description, and cache_id.
+    * @param name - The name of the key.
+    * @param description - The description of the key.
+    * @param cache_id - An array of cache IDs to associate the key with.
+    * @param key - The key to be hashed and stored.
+    * @param deleteable - Optional parameter to indicate if the key is deleteable.
+    *
+    * @returns The ID of the created key.
+    * @throws Error if there is an error creating the key or if the key already exists.
+    * */
+    public async createKey(name:string, description:string, cache_id:Array<number>, key:string, deleteable?:boolean){
         const hash = this.getHashedKey(key);
         const keyResult = await this.client.query(`
             INSERT INTO cache.keys (name, description, hash)
-                
             VALUES($1, $2, $3)
                 RETURNING *;
         `, [name, description, hash]);
@@ -332,10 +424,10 @@ export default class Database{
         const keyId = keyResult.rows[0].id;
         for(const cache of cache_id){
             await this.client.query(`
-                INSERT INTO cache.cache_key (cache_id, key_id) VALUES($1, $2)
-            `, [cache, keyId]);
+                INSERT INTO cache.cache_key (cache_id, key_id, permissions) VALUES($1, $2, $3)
+            `, [cache, keyId, deleteable ? "managed" : "none"]);
         }
-        return key;
+        return keyId;
     }
 
     public async expandKey(cache_id:string, keys:Array<string>){
@@ -419,5 +511,157 @@ export default class Database{
             hashes: res.rows,
             totalCount: count.rows[0].count
         }
+    }
+
+    /*
+    * Appends a public signing key to the database and links it to a cache and an API key.
+    * It will **not create the link** if this combination of keyID, cacheID and apiKeyID already exists.
+    * @param cache_id - The ID of the cache to link the signing key to.
+    * @param publicSigningKey - The public signing key to append.
+    * @param apiKeyID - The ID of the API key to link the signing key to.
+    * @param name - The name of the public signing key.
+    * @return The ID of the appended public signing key.
+    * */
+    public async appendPublicSigningKey(cache_id:string, publicSigningKey:string, apiKeyID:string, name:string):Promise<string>{
+        //Insert the psk into the database
+        const pskID = await this.client.query(`
+            INSERT INTO cache.public_signing_keys (name, key, description)
+            VALUES($1, $2, $3)
+            RETURNING *
+        `, [name, publicSigningKey, "Public Signing Key for an Iglu Builder"])
+
+        //Connect the psk and the api key
+        await this.client.query(`
+            INSERT INTO cache.signing_key_cache_api_link (signing_key_id, cache_id, key_id)
+            VALUES($1, $2, $3)
+        `, [pskID.rows[0].id, cache_id, apiKeyID]);
+
+        return pskID.rows[0].id;
+    }
+
+    /*
+    * Checks if a given signing key has an exact match in the database and if so returns information about that key
+    * @param publicSigningKey - The public signing key to check.
+    * */
+    public async checkPublicSigningKeyExists(publicSigningKey:string):Promise<{exists:boolean, id:number | null}>{
+
+        //Check if the public signing key exists in the database
+        const res = await this.client.query(`
+            SELECT * FROM cache.public_signing_keys WHERE key = $1
+        `, [publicSigningKey]);
+        return {
+            exists: res.rows.length > 0,
+            id: res.rows.length > 0 ? res.rows[0].id : null,
+        }
+    }
+
+    /*
+    * This function gets all builders from the database and returns them
+    * */
+    public async getAllBuilders():Promise<Array<builderDatabase>>{
+        const res:Array<builderDatabase> = await this.client.query(`
+            SELECT row_to_json(cb.*) as builder, row_to_json(cc.*) as cachix, row_to_json(bo.*) as buildoptions, row_to_json(gc.*) as git, row_to_json(ca.*) as cache
+            FROM cache.builder cb
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                     INNER JOIN cache.caches ca ON ca.id = cc.target
+            GROUP BY cb.id, cc.id, bo.id, gc.id, ca.id;
+        `).then((res)=>{
+            return res.rows
+        })
+        return res
+    }
+
+    public async createBuilder(config:builderDatabaseRepresenation, cacheID:string){
+        await this.client.query(`
+            START TRANSACTION; 
+             `)
+        let resId = await this.client.query(`
+            INSERT INTO cache.builder (name, description, enabled, trigger, cron, webhookurl, cache_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id;
+        `, [
+            //Inserts for the builder table
+            config.name,
+            config.description,
+            config.enabled,
+            config.trigger,
+            config.schedule ? config.schedule : '',
+            config.webhookURL,
+            cacheID,
+        ])
+
+        let id = resId.rows[0].id;
+
+        await this.client.query(`
+
+
+                INSERT INTO cache.cachixconfigs (builder_id, push, target, apikey, signingkey, buildoutputdir)
+                    VALUES($1, $2, $3, $4, $5, $6);
+        `, [
+            //Builder ID
+            id,
+
+            //Inserts for the cachixConfigs table
+            config.buildOptions.cachix.push,
+            cacheID,
+            config.buildOptions.cachix.apiKey,
+            config.buildOptions.cachix.signingKey,
+            config.buildOptions.cachix.cachixPushSourceDir,
+        ])
+
+        await this.client.query(`
+            INSERT INTO cache.git_configs (builder_id, repository, branch, gitusername, gitkey, requiresauth, noclone)
+            VALUES($7, $1, $2, $3, $4, $5, $6);
+        `, [
+            //Inserts for the git_configs table
+            config.git.repository,
+            config.git.branch,
+            config.git.gitUsername,
+            config.git.gitKey,
+            config.git.requiresAuth,
+            config.git.noClone,
+
+            //Builder ID
+            id
+        ])
+
+        await this.client.query(`
+            INSERT INTO cache.buildoptions (builder_id, cores, maxjobs, keep_going, extraargs, parallelbuilds, command)
+            VALUES($1, $2, $3, $4, $5, $6, $7);
+        `, [
+            id,
+            //Inserts for the buildOptions table
+            config.buildOptions.cores,
+            config.buildOptions.maxJobs,
+            config.buildOptions.keep_going,
+            config.buildOptions.extraArgs,
+            config.buildOptions.parellelBuilds,
+            config.buildOptions.command,
+        ])
+
+        await this.client.query(`
+            COMMIT TRANSACTION;
+        `)
+    }
+
+    public async createBuilderRun(builderId:number, gitCommit:string, status:string, log:string):Promise<number>{
+        return await this.client.query(`
+            INSERT INTO cache.builder_runs (builder_id, gitcommit, status, log, duration)
+                VALUES($1, $2, $3, $4, $5)
+            RETURNING id;
+        `, [builderId, gitCommit, status, log, 0]).then((res)=>{
+            console.log(res.rows[0])
+            return res.rows[0].id;
+        })
+    }
+
+    public async updateBuilderRun(builderRunID:number, status:string, log:string){
+        await this.client.query(`
+            UPDATE cache.builder_runs
+            SET status = $1, log = $2, duration = age(now(), (SELECT started_at FROM cache.builder_runs WHERE id = $3)), ended_at = now()
+            WHERE id = $3;;
+        `, [status, log, builderRunID]);
     }
 }

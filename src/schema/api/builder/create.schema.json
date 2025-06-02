@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Create Builder Schema",
+  "description" : "Schema for creating a builder workflow",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The name of the builder entry",
+      "type": "string"
+    },
+    "description": {
+        "description": "A brief description of the builder entry",
+        "type": "string"
+    },
+    "git": {
+      "description": "The Git repo information",
+      "type": "object",
+      "properties": {
+        "noClone": {
+          "description": "Indicates whether to skip cloning the repository (in the case that the build command specifies a git repo)",
+            "type": "boolean"
+        },
+        "url": {
+            "description": "The URL of the Git repository",
+            "type": "string"
+        },
+        "branch": {
+            "description": "The branch of the Git repository to use",
+            "type": "string"
+        },
+        "requiresAuth": {
+            "description": "Indicates whether authentication is required for the Git repository",
+            "type": "boolean"
+        },
+        "username": {
+            "description": "The username for accessing the Git repository",
+            "type": "string"
+        },
+        "token": {
+            "description": "The token (or password for legacy git servers) for accessing the Git repository",
+            "type": "string"
+        }
+      },
+        "required": ["noClone", "requiresAuth"]
+    },
+    "build": {
+      "description": "The build specification",
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "The command to run for building the project",
+          "type": "string"
+        },
+        "buildTrigger": {
+            "description": "The trigger for the build process",
+            "type": "string",
+            "enum": ["webhook", "cron", "manual"]
+        },
+        "cron": {
+            "description": "The cron expression for scheduling builds",
+            "type": "string"
+        },
+        "outputDir": {
+            "description": "The directory where build outputs are stored",
+            "type": "string"
+        },
+        "allowUnfree": {
+            "description": "Indicates whether unfree software is allowed in the build",
+            "type": "boolean"
+        },
+        "parallelBuilds": {
+            "description": "Indicates whether parallel builds are allowed",
+            "type": "boolean"
+        },
+        "sandboxed": {
+            "description": "Indicates whether the build should be sandboxed",
+            "type": "boolean"
+        },
+        "maxJobs": {
+            "description": "The maximum number of jobs to run in parallel during the build",
+            "type": "integer"
+        },
+        "cores": {
+            "description": "The number of CPU cores to allocate for the build",
+            "type": "integer"
+        },
+        "substituters": {
+          "description": "The list of substituters to use for the build",
+            "type": "array",
+          "items": {
+            "type": "object",
+            "description": "The substituter configurations",
+            "properties": {
+              "url": {
+                "description": "The URL of the substituter",
+                "type": "string"
+              },
+              "signingKeys": {
+                "description": "The signing keys for this cache",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "The public signing key for the cache entry"
+                }
+              }
+            }
+          },
+          "required": ["url", "signingKeys"]
+        }
+      },
+      "required": ["command", "buildTrigger", "outputDir", "allowUnfree", "parallelBuilds", "sandboxed", "maxJobs", "cores", "substituters"]
+    },
+    "cachix": {
+      "description": "The Cachix configuration for the builder",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "The mode in which this configuration should be created, auto for automatic, manual for manual",
+          "type": "string",
+          "enum": ["auto", "manual"]
+        },
+        "cachixPublicSigningKey": {
+          "description": "The public signing key for the Cachix cache",
+          "type": "string"
+        },
+        "cachixSigningKey": {
+          "description": "The Key with which packages should be signed",
+          "type": "string"
+        },
+        "push": {
+            "description": "Indicates whether to push build outputs to Cachix",
+            "type": "boolean"
+        }
+      },
+      "required": ["mode", "push"]
+    }
+  },
+  "required": ["name", "git", "build", "cachix"]
+}
