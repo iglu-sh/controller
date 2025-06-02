@@ -35,7 +35,7 @@ jobs:
           echo "Building docker for $system!"
           nix build .#packages.$system.iglu-controller-docker
           sudo docker load < result
-          version=$(docker images | grep iglu-controller-docker | head -n1 | awk '{print $2}' | cut -d- -f1)
+          version=$(docker images | grep iglu-controller | head -n1 | awk '{print $2}' | cut -d- -f1)
         done
 
         echo
