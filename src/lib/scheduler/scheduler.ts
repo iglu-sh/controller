@@ -114,7 +114,8 @@ export default class Scheduler {
                             if (index !== -1) {
                                 const builderID = Scheduler.runningBuilders[index].id;
 
-                                const status = event.Action === 'die' ? 'failure' : 'success';
+                                const status = event.Action === 'die' || event.Action === 'kill' ? 'failure' : 'success';
+
                                 //Update the builder run status in the database
                                 await Scheduler.db.updateBuilderRun(Scheduler.runningBuilders[index].dbID, status, Scheduler.runningBuilders[index].output || '');
 
@@ -149,7 +150,7 @@ export default class Scheduler {
                 console.log(`> Scheduler: Docker image pulled successfully`);
             });
         })
-        //await Scheduler.startBuild(1)
+        await Scheduler.startBuild(1)
         return
     }
 
@@ -199,19 +200,50 @@ export default class Scheduler {
         }
 
         console.log(`> Scheduler: Sending startup message for Docker container ${dockerID} with builder ID ${builderID}`);
-        console.log(JSON.stringify(config))
+
         //Connect via websocket
         const index = Scheduler.runningBuilders.findIndex((b) => b.dockerID === dockerID);
-        const ws = new WebSocket(`ws://${ip}:3000/api/v1/build`);
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        let ws = new WebSocket(`ws://${ip}:3000/api/v1/build`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Builder-ID': builderID,
+                'Docker-ID': dockerID
+            }
+        });
         console.log(ws.url)
+        ws.addEventListener('error', async (e)=>{
+            console.error(`> Scheduler: WebSocket error for Docker container ${dockerID}:`, e);
+
+            let i = 0;
+            let isConnected = false;
+            //Try and reconnect to the container up to 5 times with a delay of 5 seconds, if it fails, we kill the builder
+            for(; i < 5; i++) {
+                console.log(`> Scheduler: Retrying WebSocket connection to Docker container ${dockerID} (${i + 1}/5)`);
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
+                ws = new WebSocket(`ws:/${ip}:3000/api/v1/build`);
+                if(ws.readyState === WebSocket.OPEN) {
+                    console.log(`> Scheduler: Reconnected to Docker container ${dockerID}`);
+                    break;
+                }
+            }
+
+            if(!isConnected){
+                //Kill the builder
+                Scheduler.kill(Scheduler.runningBuilders[index].id, dockerID).catch(err => {
+                    console.error(`> Scheduler: Failed to kill builder with id ${Scheduler.runningBuilders[index].id}:`, err);
+                });
+            }
+        })
         ws.addEventListener('open', ()=>{
             console.log(`WebSocket connection established to ws://${ip}:3000`);
         })
         ws.onopen = () => {
             console.log('ESTABLISHED')
+            ws.send(JSON.stringify(config))
         }
         ws.onmessage = (async (message)=>{
-            console.log(message.toString());
+            console.log(message);
             //Add this message to the output of the builder
             const output = message.toString();
             Scheduler.runningBuilders[index].output += `${output}\n`;
@@ -286,8 +318,6 @@ export default class Scheduler {
             await container.kill();
             await container.remove();
             console.log(`> Scheduler: Killed builder with id ${builderID} and docker ID ${dockerID}`);
-            //Slice the existing builder from the runningBuilders array
-            Scheduler.runningBuilders.splice(index, 1);
 
             //Re-process the queue
             Scheduler.updateQueue()
