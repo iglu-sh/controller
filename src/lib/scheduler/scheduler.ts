@@ -7,6 +7,13 @@ import DockerEvents from 'docker-events';
 import assert from "node:assert";
 import {schedulerConfig} from "@/types/scheduler";
 
+async function checkHealth(ip:string, port:number):Promise<boolean>{
+    const result = await fetch(`http://${ip}:${port}/api/v1/healthcheck`, {
+        method: 'GET'
+    }).catch(err=>{return {ok : false};})
+    return result.ok;
+}
+
 export default class Scheduler {
     static builderConfig:Array<builderDatabase>
     static db:Database
@@ -138,7 +145,7 @@ export default class Scheduler {
                             if (index !== -1) {
                                 const builderID = Scheduler.runningBuilders[index].id;
 
-                                const status = event.Action === 'die' || event.Action === 'kill' ? 'failure' : 'success';
+                                const status = 'failure';
 
                                 //Update the builder run status in the database
                                 await Scheduler.db.updateBuilderRun(Scheduler.runningBuilders[index].dbID, status, Scheduler.runningBuilders[index].output || '');
@@ -174,7 +181,7 @@ export default class Scheduler {
                 console.log(`> Scheduler: Docker image pulled successfully`);
             });
         })
-        //await Scheduler.startBuild(1)
+        await Scheduler.startBuild(1)
         return
     }
 
@@ -225,11 +232,22 @@ export default class Scheduler {
 
         console.log(`> Scheduler: Sending startup message for Docker container ${dockerID} with builder ID ${builderID}`);
 
+        //Check if the IP address is reachable and the container is health (we check up to 5 times with a 1 second delay)
+        let isHealthy = false;
+        for(let i = 0; i < 10; i++) {
+            isHealthy = await checkHealth(ip, 3000);
+            if(isHealthy) {
+                console.log(`> Scheduler: Docker container ${dockerID} is up and healthy`);
+                break;
+            }
+            else{
+                console.log(`> Scheduler: Docker container ${dockerID} is not healthy, retrying in 1 second... (${i + 1}/10)`);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
         //Connect via websocket
         const index = Scheduler.runningBuilders.findIndex((b) => b.dockerID === dockerID);
-        console.log('> Scheduler: Waiting 5 seconds to connect to WebSocket');
-        console.log(ip)
-        await new Promise(resolve => setTimeout(resolve, 5000))
         let ws = new WebSocket(`ws://${ip}:3000/api/v1/build`);
 
         ws.addEventListener('error', async (e)=>{
@@ -249,6 +267,12 @@ export default class Scheduler {
             //Add this message to the output of the builder
             const output = message.toString();
             Scheduler.runningBuilders[index].output += `${output}\n`;
+        })
+
+        ws.onclose = (async (message)=>{
+            //Close the function and call the close
+            console.log(message)
+            await Scheduler.stop(dockerID)
         })
     }
     /*
@@ -271,6 +295,16 @@ export default class Scheduler {
                 console.log(`> Scheduler: Registering cronjob for builder with id ${builder.builder.id}`)
             }
         }
+    }
+
+    static async stop(builderID:string){
+        const container = Scheduler.docker.getContainer(builderID);
+        if(!container) {
+            console.error(`> Scheduler: Container with ID ${builderID} not found`);
+            return;
+        }
+        console.log(`> Scheduler: Stopping container with ID ${builderID}`);
+        await container.stop()
     }
 
     /*
@@ -376,7 +410,6 @@ export default class Scheduler {
                 return;
             }
         })
-
     }
 }
 
