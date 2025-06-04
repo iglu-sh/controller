@@ -18,12 +18,12 @@ Bun.spawn(["bun", "run", "src/lib/scheduler/index.ts"], {
         ...process.env
     }
 })
-
+console.log('Starting next.js server...');
 app.prepare().then(() => {
     createServer((req, res) => {
         const parsedUrl = parse(req.url!, true);
         handle(req, res, parsedUrl);
-    }).listen(port);
+    }).listen(port );
     console.log(
         `> Server listening at http://localhost:${port} as ${
             dev ? "development" : process.env.NODE_ENV

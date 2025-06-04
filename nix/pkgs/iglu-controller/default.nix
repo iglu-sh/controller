@@ -8,10 +8,9 @@ in
 buildBunApplication {
   src = ../../..;
 
-  nodeModuleHash = if isX86_64 then "sha256-3xADL5KNUwkhUqCpeDDob8I3QlMnqea4vFyXY5dR8Z8=" else "sha256-mHTWjjcjdwH6UoBoPeEYFccpaWIvuhq4piGJ+Z9xPCQ=";
+  nodeModuleHash = if isX86_64 then "sha256-3xADL5KNUwkhUqCpeDDob8I3QlMnqea4vFyXY5dR8Z8=" else "sha256-TdnGyfmWJr2sqaYOwKuJX3az+0TpNZb7U8bTlhU5lu4=";
 
-  bunExtraArgs = "--bun";
-  bunScript = "start";
+  bunScript = "dev";
 
   filesToInstall = [
     "src"

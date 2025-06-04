@@ -10,7 +10,6 @@ import {schedulerConfig} from "@/types/scheduler";
 export default class Scheduler {
     static builderConfig:Array<builderDatabase>
     static db:Database
-    static emmiter:DockerEvents;
     static runningBuilders:Array<{
         id: number,
         dockerID: string,
@@ -19,6 +18,7 @@ export default class Scheduler {
         dbID: number,
         output?: string
     }> = []
+    static networkID:string;
 
     //This array holds the queue for all jobs that exceed the maximum limit of builders configured
     static queue:Array<number> = []
@@ -53,6 +53,22 @@ export default class Scheduler {
             assert(Scheduler.db, 'Scheduler.db is not initialized')
             await Scheduler.db.close()
         })
+        //Check if the iglu-nw network exists, if not create it
+        const networks = await Scheduler.docker.listNetworks();
+        const igluNetwork = networks.find((network) => network.Name === 'iglu-nw');
+        if (!igluNetwork) {
+            console.log(`> Scheduler: Creating iglu-nw network`);
+            const network = await Scheduler.docker.createNetwork({
+                Name: 'iglu-nw',
+                CheckDuplicate: true,
+                Driver: 'bridge',
+            });
+            Scheduler.networkID = network.id;
+        } else {
+            console.log(`> Scheduler: Using existing iglu-nw network with ID ${igluNetwork.Id}`);
+            Scheduler.networkID = igluNetwork.Id;
+        }
+
         Scheduler.docker.getEvents(async (err, stream) => {
             console.log(`> Scheduler: Listening for Docker events`);
             if (err) {
@@ -93,11 +109,19 @@ export default class Scheduler {
                             const builderRunID = await Scheduler.db.createBuilderRun(parseInt(containerName.split('-')[2]), '', 'running', '')
                             //Add the docker to the running builders
                             console.log(`> Scheduler: Got builder run id: ${builderRunID}`)
+                            console.log(dockerInfo.NetworkSettings)
+                            //Check if the container has an IP Address
+                            if(!dockerInfo.NetworkSettings || !dockerInfo.NetworkSettings.Networks['iglu-nw'] || !dockerInfo.NetworkSettings.Networks['iglu-nw'].IPAddress) {
+                                console.error(`> Scheduler: Container ${containerID} does not have an IP address assigned in the iglu-nw network`);
+                                //Kill the container
+                                await dockerContainer.kill();
+                                return
+                            }
                             Scheduler.runningBuilders.push({
                                 id: parseInt(containerName.split('-')[2]),
                                 dockerID: containerID,
                                 dockerInfo: dockerInfo,
-                                ip: dockerInfo.NetworkSettings?.IPAddress || '',
+                                ip: dockerInfo.NetworkSettings?.Networks['iglu-nw'].IPAddress || '',
                                 dbID: builderRunID,
                                 output: ''
                             });
@@ -150,7 +174,7 @@ export default class Scheduler {
                 console.log(`> Scheduler: Docker image pulled successfully`);
             });
         })
-        await Scheduler.startBuild(1)
+        //await Scheduler.startBuild(1)
         return
     }
 
@@ -171,7 +195,7 @@ export default class Scheduler {
         const ip = dockerInfo.ip;
 
         assert(ip, '> Scheduler: Docker container IP address is not available');
-        console.log(JSON.parse(builder.cachix.signingkey))
+
         //Send the config via the Websocket
         const config:schedulerConfig = {
             git: {
@@ -203,45 +227,23 @@ export default class Scheduler {
 
         //Connect via websocket
         const index = Scheduler.runningBuilders.findIndex((b) => b.dockerID === dockerID);
+        console.log('> Scheduler: Waiting 5 seconds to connect to WebSocket');
+        console.log(ip)
         await new Promise(resolve => setTimeout(resolve, 5000))
-        let ws = new WebSocket(`ws://${ip}:3000/api/v1/build`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Builder-ID': builderID,
-                'Docker-ID': dockerID
-            }
-        });
-        console.log(ws.url)
+        let ws = new WebSocket(`ws://${ip}:3000/api/v1/build`);
+
         ws.addEventListener('error', async (e)=>{
             console.error(`> Scheduler: WebSocket error for Docker container ${dockerID}:`, e);
-
-            let i = 0;
-            let isConnected = false;
-            //Try and reconnect to the container up to 5 times with a delay of 5 seconds, if it fails, we kill the builder
-            for(; i < 5; i++) {
-                console.log(`> Scheduler: Retrying WebSocket connection to Docker container ${dockerID} (${i + 1}/5)`);
-                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
-                ws = new WebSocket(`ws:/${ip}:3000/api/v1/build`);
-                if(ws.readyState === WebSocket.OPEN) {
-                    console.log(`> Scheduler: Reconnected to Docker container ${dockerID}`);
-                    break;
-                }
-            }
-
-            if(!isConnected){
-                //Kill the builder
-                Scheduler.kill(Scheduler.runningBuilders[index].id, dockerID).catch(err => {
-                    console.error(`> Scheduler: Failed to kill builder with id ${Scheduler.runningBuilders[index].id}:`, err);
-                });
-            }
+            Scheduler.kill(Scheduler.runningBuilders[index].id, dockerID).catch(err => {
+                console.error(`> Scheduler: Failed to kill builder with id ${Scheduler.runningBuilders[index].id}:`, err);
+            });
         })
-        ws.addEventListener('open', ()=>{
-            console.log(`WebSocket connection established to ws://${ip}:3000`);
-        })
+
         ws.onopen = () => {
-            console.log('ESTABLISHED')
+            console.log(`WebSocket connection established to ws://${ip}:3000`);
             ws.send(JSON.stringify(config))
         }
+
         ws.onmessage = (async (message)=>{
             console.log(message);
             //Add this message to the output of the builder
@@ -368,7 +370,7 @@ export default class Scheduler {
 
         //Create the docker container for the builder
         let containerName = `iglu-builder-${builderID}-${Bun.randomUUIDv7()}`;
-        Scheduler.docker.run(`ghcr.io/iglu-sh/iglu-builder:v0.0.1`, [], [process.stdout, process.stderr], {Tty: false, name: containerName}, async (err, data)=>{
+        Scheduler.docker.run(`ghcr.io/iglu-sh/iglu-builder:v0.0.1`, [], [process.stdout, process.stderr], {Tty: false, name: containerName, HostConfig:{NetworkMode:'iglu-nw'}}, async (err, data)=>{
             if(err) {
                 console.error(`> Scheduler: Failed to start builder with id ${builderID}:`, err);
                 return;
