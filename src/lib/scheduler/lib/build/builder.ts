@@ -50,7 +50,7 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
         //On WebSocket open, send the builder configuration
         WS.onopen = async ()=>{
             WS.send(JSON.stringify(BUILDER_SCHEMA))
-            Logger. 
+            Logger.debug(`WebSocket connection opened for builder ${config.builder.name} with ID ${runningBuilder.dockerID}, IP: ${runningBuilder.ip}`);
         }
 
         //On WebSocket message, handle the incoming messages
