@@ -1,3 +1,5 @@
+import {ContainerInspectInfo} from "dockerode";
+
 export type schedulerConfig = {
     git: {
         repository: string,
@@ -22,4 +24,13 @@ export type schedulerConfig = {
             signingKey: string,
         }
     }
+}
+
+export type runningBuilder = {
+    id:number,
+    dockerID: string,
+    dockerInfo: ContainerInspectInfo,
+    ip: string,
+    dbID: number,
+    output: Buffer
 }
