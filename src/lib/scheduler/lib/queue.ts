@@ -9,11 +9,11 @@ import {Logger} from "@/lib/logger";
 * It checks if there is space for more builders, and if so, it starts the next builder in the queue.
 * It returns a promise that resolves with the updated queue.
 * @param {Array<builderDatabase>} builderConfigs - The array of builder configs to choose from
-* @param {Array<{builderID:number, runID:number}>} queue - The current queue of builders to be started
+* @param {Array<{builderID:number, [runID]:number}>} queue - The current queue of builders to be started
 * @param {Array<runningBuilder>} runningBuilders - The current array of running builders
 * @param {Database} DB - The database instance to interact with the database
 * @param {Docker} DOCKER - The Docker instance to interact with the Docker API
-* @returns {Promise<Array<{builderID:number, runID:number}>>}
+* @returns {Promise<Array<{builderID:number, [runID]:number}>>}
 * @throws {Error} If there is an error in managing the queue or if the builder config is not found
 * */
 export default async function refreshQueue(

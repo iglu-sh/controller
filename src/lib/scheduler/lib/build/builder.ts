@@ -10,10 +10,14 @@ import Database from "@/lib/db";
 * @param {runningBuilder} runningBuilder - The running builder object
 * @returns {void}
 * */
-export default function builder(config:builderDatabase, runningBuilder:runningBuilder, DB:Database){
+export default function builder(config: builderDatabase, runningBuilder: runningBuilder, DB: Database, builderExitedCallback: (data: {
+    id: string;
+    runID: number;
+    reason: "FAILED" | "SUCCESS";
+}) => Promise<void>){
     Logger.warn(`Starting builder with ID ${runningBuilder.dockerID} and name ${config.builder.name}`);
     //Create a new WebSocket
-    const WS = new WebSocket(`ws://${runningBuilder.ip}:3000/api/v1/builder`);
+    const WS = new WebSocket(`ws://${runningBuilder.ip}:3000/api/v1/build`);
     const EVENT_EMITTER = new event.EventEmitter()
 
     try{
@@ -28,7 +32,7 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
                 repository: config.git.repository ? config.git.repository : '',
                 branch: config.git.branch ? config.git.branch : 'main',
                 gitUsername: config.git.gitusername ? config.git.gitusername : '',
-                gitPassword: config.git.gitkey ? config.git.gitkey : '',
+                gitKey: config.git.gitkey ? config.git.gitkey : '',
                 requiresAuth: config.git.requiresauth ? config.git.requiresauth : false,
             },
             buildOptions: {
@@ -47,6 +51,8 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
                 }
             }
         }
+        const OUTPUT = runningBuilder.output.toString()
+        let jobStatus = ''
         //On WebSocket open, send the builder configuration
         WS.onopen = async ()=>{
             WS.send(JSON.stringify(BUILDER_SCHEMA))
@@ -56,6 +62,13 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
         //On WebSocket message, handle the incoming messages
         WS.onmessage = async (event) => {
             console.log(event)
+            const data = JSON.parse(event.data.toString())
+            if(data.jobStatus != jobStatus){
+                jobStatus = data.jobStatus
+                await DB.updateBuilderRun(runningBuilder.dbID, jobStatus, runningBuilder.output)
+            }
+            runningBuilder.output += `${event.data.toString()}\n`
+            runningBuilder.stream.push(`${event.data.toString()}`)
         }
 
         WS.onerror = async (error) => {
@@ -64,8 +77,22 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
 
         //When a Websocket connection is closed, we need to handle it gracefully
         //This is determined by looking at the close code and reason
-        WS.onclose = (reason) => {
-            console.log(reason)
+        WS.onclose = async (reason) => {
+            console.log(reason.code, reason.reason)
+            if(!reason.wasClean){
+                await builderExitedCallback({
+                    id: runningBuilder.dockerID,
+                    runID: runningBuilder.dbID,
+                    reason: 'FAILED'
+                })
+            }
+            else{
+                await builderExitedCallback({
+                    id: runningBuilder.dockerID,
+                    runID: runningBuilder.dbID,
+                    reason: 'SUCCESS'
+                })
+            }
         }
     }
     catch(error){
@@ -74,7 +101,7 @@ export default function builder(config:builderDatabase, runningBuilder:runningBu
         // and we also call the end() function with the containerID to end the container.
         // This is most likely a fatal error, so we should set this build as failed
         Logger.error(`Error building config ${config.builder.name} with ID ${runningBuilder.dockerID}: ${error}`);
-        EVENT_EMITTER.emit('builderFailed', {
+        EVENT_EMITTER.emit('builderExited', {
             id: runningBuilder.dockerID,
             runID: runningBuilder.dbID,
             reason: 'FAILED'

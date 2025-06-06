@@ -2,6 +2,7 @@ import {runningBuilder} from "@/types/scheduler";
 import Docker, {ContainerInspectInfo} from 'dockerode'
 import Database from "@/lib/db";
 import {Logger} from "@/lib/logger";
+import stream from 'node:stream'
 
 /*
 * This function is run whenever a new builder is started. It returns a promise that resolves when the builder is successfully started (i.e /api/v1/healthcheck returns 200).
@@ -12,7 +13,7 @@ import {Logger} from "@/lib/logger";
 * @returns {Promise<runningBuilder>}
 * @throws {Error} If there is an error in the builder startup process or if the builder fails to start
 * */
-export default async function builderStartup(dockerID:string, name:string, DOCKER:Docker, DB:Database):Promise<runningBuilder> {
+export default async function builderStartup(dockerID: string, name: string, DOCKER: Docker, DB: Database):Promise<runningBuilder> {
 
     //Fetch the container info from Docker
     const CONTAINER_INFO:ContainerInspectInfo = await DOCKER.getContainer(dockerID).inspect();
@@ -69,6 +70,11 @@ export default async function builderStartup(dockerID:string, name:string, DOCKE
         dockerInfo: CONTAINER_INFO,
         ip: IP,
         dbID: BUILDER_DATABASE_RUN_ID,
-        output: Buffer.from(`Starting build for builder ${name} with ID ${dockerID}\n`),
+        output: `Starting build for builder ${name} with ID ${dockerID}\n`,
+        stream: new stream.Readable({
+            read(){
+                this.push(`Starting build for builder ${name} with ID ${dockerID}\n`);
+            }
+        })
     })
 }

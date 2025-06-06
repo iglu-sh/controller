@@ -14,7 +14,8 @@ export default async function end(runningBuilder:runningBuilder | undefined, rea
         await container.remove();
 
         // Update the database with the end state (i.e transitioning the builder to either the FAILED or SUCCESS state)
-        const LOG = runningBuilder ? runningBuilder.output.toString() : 'No Logs available';
+        const LOG = runningBuilder ? runningBuilder.output : 'No Logs available';
+
         await DB.updateBuilderRun(RUN_ID, reason, LOG)
 
         // Remove the builder from the running builders array

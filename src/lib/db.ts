@@ -664,4 +664,5 @@ export default class Database{
             WHERE id = $3;;
         `, [status, log, builderRunID]);
     }
+
 }

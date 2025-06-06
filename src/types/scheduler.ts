@@ -1,4 +1,5 @@
 import {ContainerInspectInfo} from "dockerode";
+import {Readable} from "node:stream";
 
 export type schedulerConfig = {
     git: {
@@ -32,5 +33,6 @@ export type runningBuilder = {
     dockerInfo: ContainerInspectInfo,
     ip: string,
     dbID: number,
-    output: Buffer
+    output: string,
+    stream: Readable
 }

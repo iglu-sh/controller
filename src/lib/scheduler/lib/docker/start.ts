@@ -25,7 +25,7 @@ export async function start(builderConfigID:number, run_ID:number, builderConfig
 
     // Create the Docker container with the specified configuration
     //FIXME: This might be a good place create a WritableStream to capture the output of the Docker container and then deprecate the whole websocket output thing
-    DOCKER.run(`ghcr.io/iglu-sh/iglu-builder:v0.0.1`, [], [], {Tty: false, name: CONTAINER_NAME, HostConfig:{NetworkMode:'iglu-nw'}}, async (err)=>{
+    DOCKER.run(`ghcr.io/iglu-sh/iglu-builder:latest`, [], [], {Tty: false, name: CONTAINER_NAME, HostConfig:{NetworkMode:'iglu-nw'}}, async (err)=>{
         if(err){
             Logger.error(`Error starting Docker container for builder config ID ${builderConfigID}: ${err.message}`);
             throw new Error(`Error starting Docker container for builder config ID ${builderConfigID}: ${err.message}`);

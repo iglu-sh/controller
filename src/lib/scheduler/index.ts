@@ -38,6 +38,12 @@ new Logger().setLogLevel(LOG_LEVEL as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR');
 new Logger().setJsonLogging(LOG_JSON);
 Logger.info("Logger initialized with level: " + LOG_LEVEL);
 
+DOCKER.info().catch((error)=>{
+    console.log(error)
+    Logger.error('Docker is not running or the socket path is incorrect. Please check your Docker installation and the SCHEDULER_DOCKER_SOCKET environment variable.');
+    process.exit(1);
+})
+
 // Check if the iglu_nw network is already created in the Docker environment if not, create it
 if(!DOCKER.getNetwork('iglu-nw')) {
     Logger.info('Creating Docker network "iglu-nw"');
@@ -58,14 +64,7 @@ process.on('beforeExit', async () => {
 
 // Initialize the queue and fetch the builders from the database
 let builderConfig:Array<builderDatabase> = [];
-let runningBuilders: Array<{
-    id: number,
-    dockerID: string,
-    dockerInfo: ContainerInspectInfo,
-    ip: string,
-    dbID: number,
-    output: Buffer
-}> = []
+let runningBuilders: Array<runningBuilder> = []
 let queue: Array<{builderID:number, runID:number}> = [];
 
 //Listen for the builderStarted event
@@ -100,14 +99,19 @@ async function builderStartedCallback(data:{id:string, name:string}) {
         Logger.error(`Failed to find builder config with ID ${builderInfo.id}`);
         return;
     }
-    builder(builderConfig[CONFIG_INDEX], runningBuilders[RUNNING_BUILDER_INDEX], DB)
+    builder(builderConfig[CONFIG_INDEX], runningBuilders[RUNNING_BUILDER_INDEX], DB, builderExitedCallback)
+}
+
+async function builderExitedCallback(data:{id:string, runID:number, reason: 'FAILED' | 'SUCCESS'}){
+    Logger.info(`Received builderExited event for builder with ID ${data.id} and reason ${data.reason}`);
+    const BUILDER = runningBuilders.find(builder => builder.dockerID === data.id);
+    await end(BUILDER, data.reason, DOCKER, DB, data.id, data.runID, removeRunningBuilder);
+    await refreshQueue(builderConfig, queue, runningBuilders, DB, DOCKER);
 }
 
 //Listen for builderFailed event
 EVENT_EMITTER.on('builderExited', async (data:{id:string, runID:number, reason: 'FAILED' | 'SUCCESS'})=>{
-    Logger.info(`Received builderExited event for builder with ID ${data.id} and reason ${data.reason}`);
-    const BUILDER = runningBuilders.find(builder => builder.dockerID === data.id);
-    await end(BUILDER, data.reason, DOCKER, DB, data.id, data.runID, removeRunningBuilder);
+    await builderExitedCallback(data);
 })
 
 // Listen for queueRefresh event
