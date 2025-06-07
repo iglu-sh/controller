@@ -672,4 +672,25 @@ export default class Database{
 
         return res.rows[0]
     }
+
+    public async getBuilderRun(runID:string):Promise<{
+        id: number,
+        builder_id: number,
+        status: string,
+        started_at: Date,
+        ended_at: Date | null,
+        gitcommit: string,
+        duration: string,
+        log: string
+    }>{
+        const res = await this.client.query(`
+            SELECT * FROM cache.builder_runs WHERE id = $1
+        `, [runID]);
+
+        if(res.rows.length === 0){
+            throw new Error("Builder run not found");
+        }
+
+        return res.rows[0];
+    }
 }

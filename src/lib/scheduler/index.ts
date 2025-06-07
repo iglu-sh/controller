@@ -104,21 +104,38 @@ async function builderStartedCallback(data:{id:string, name:string}) {
         Logger.error(`Failed to find builder config with ID ${builderInfo.id}`);
         return;
     }
-    builder(builderConfig[CONFIG_INDEX], runningBuilders[RUNNING_BUILDER_INDEX], DB, builderExitedCallback)
+
+    // Emit the builderStarted event so any websocket listeners can switch to the runningBuilderObject for their listening
+    EVENT_EMITTER.emit('builderStarted', {
+        id: data.id,
+        name: data.name,
+        dockerID: builderInfo.dockerID,
+        ip: builderInfo.ip,
+        dbID: builderInfo.dbID,
+        runningBuilderIndex: RUNNING_BUILDER_INDEX,
+    })
+
+    builder(builderConfig[CONFIG_INDEX], runningBuilders[RUNNING_BUILDER_INDEX], DB, builderExitedCallback, ()=>{EVENT_EMITTER.emit(`data${builderInfo.dbID}`)}, (status)=>{
+        // Update the status of the builder in the runningBuilders array
+        runningBuilders[RUNNING_BUILDER_INDEX].status = status as any;
+    })
 }
 
 async function builderExitedCallback(data:{id:string, runID:number, reason: 'FAILED' | 'SUCCESS'}){
     Logger.info(`Received builderExited event for builder with ID ${data.id} and reason ${data.reason}`);
+    EVENT_EMITTER.emit('builderExited', data);
     const BUILDER = runningBuilders.find(builder => builder.dockerID === data.id);
+
     await end(BUILDER, data.reason, DOCKER, DB, data.id, data.runID, removeRunningBuilder);
     EVENT_EMITTER.emit('queueRefresh');
 }
 
 //Listen for builderFailed event
+/*
 EVENT_EMITTER.on('builderExited', async (data:{id:string, runID:number, reason: 'FAILED' | 'SUCCESS'})=>{
     await builderExitedCallback(data);
 })
-
+*/
 // Listen for queueRefresh event
 EVENT_EMITTER.on('queueRefresh', async () => {
     Logger.info(`Refreshing queue with ${queue.length} queued builders and ${runningBuilders.length} running builders.`);
@@ -173,10 +190,13 @@ await initializeBuilders()
 //Middleware to check if the request is authenticated
 const isAuthenticated = (req:BunRequest) => {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return false;
+    const authKeyURLParam = new URL(req.url).searchParams.get('authKey');
+    if (!authHeader && !authKeyURLParam) return false;
 
-    const [type, token] = authHeader.split(' ');
-    return type === 'Bearer' && token === KEY
+    let token = authHeader ? authHeader.split(' ')[1] : authKeyURLParam;
+
+
+    return token === KEY
 }
 
 
@@ -241,12 +261,21 @@ Bun.serve({
         },
         '/api/v1/listen': async (req, server) => {
             if (!isAuthenticated(req)) {
+                console.log('Unauthorized access attempt to /api/v1/listen');
                 return new Response('Unauthorized', { status: 401 });
             }
             try {
                 // upgrade the request to a WebSocket
-                if (server.upgrade(req)) {
+                if (server.upgrade(
+                    req,
+                    {
+                        data:{
+                            runID: new URL(req.url).searchParams.get('runID'),
+                        }
+                    }
+                )) {
                     //return; // do not return a Response
+                    return new Response('Upgrade', { status: 101, headers: { 'Upgrade': 'websocket', 'Connection': 'Upgrade' } });
                 }
                 return new Response("Upgrade failed", { status: 500 });
             } catch (error) {
@@ -259,9 +288,160 @@ Bun.serve({
         //TODO: Implement Websocket handling
         message(ws, message) {}, // a message is received
         open(ws) {
-            ws.send(JSON.stringify({"test":"test"}))
+            async function wrap(){
+                // On WebSocket open, we fetch the current output from the builder (stored in the runningBuilders array)
+                // and send it to the client line by line
+                Logger.info('WebSocket connection opened');
+                const RUN_ID = (ws.data as any).runID
+
+                //The first message is always the current state of the builder
+                //i.e QUEUED, STARTING, RUNNING, SUCCESS, FAILED
+                const BUILDER_RUN = await DB.getBuilderRun(RUN_ID).catch((err)=>{
+                    Logger.error(`Error fetching builder run with ID ${RUN_ID}: ${err.message}`);
+                    ws.close(1000, 'Internal Server Error');
+                    return null;
+                })
+
+                if(!BUILDER_RUN) {
+                    Logger.error(`Builder run with ID ${RUN_ID} not found`);
+                    ws.close(1000, 'Builder run not found');
+                    return;
+                }
+
+                ws.send(JSON.stringify({
+                    msgType: 'initialState',
+                    data: {
+                        status: BUILDER_RUN ? BUILDER_RUN.status : 'UNKNOWN',
+                        runID: RUN_ID,
+                        started_at: BUILDER_RUN ? BUILDER_RUN.started_at : null,
+                    }
+                }))
+
+
+                // If the state of the builder is FAILURE or SUCCESS, we send the output of the builder in the database
+                let output = BUILDER_RUN.status === 'SUCCESS' ||
+                    BUILDER_RUN.status === 'FAILED' ?
+                        BUILDER_RUN.log :
+                        ''
+                let RUNNING_BUILDER = runningBuilders.find(builder => builder.dbID === RUN_ID);
+
+                // If the RUNNING_BUILDER is found, we use its output instead
+                if(RUNNING_BUILDER) {
+                    output = RUNNING_BUILDER.output;
+                }
+
+                // Now we send the output line by line to the client
+                if(output && output.length > 0){
+                    const lines = output.split('\n');
+                    for (const line of lines) {
+                        if(line.trim().length > 0){
+                            ws.send(JSON.stringify({
+                                msgType: 'output',
+                                data: line,
+                            }));
+                        }
+                    }
+                }
+
+                // If the status is SUCCESS or FAILED, we send the final message
+                if(BUILDER_RUN.status === 'SUCCESS' || BUILDER_RUN.status === 'FAILED'){
+                    ws.send(JSON.stringify({
+                        msgType: 'final',
+                        data: {
+                            status: BUILDER_RUN.status,
+                            ended_at: BUILDER_RUN.ended_at,
+                            runID: RUN_ID,
+                            duration: BUILDER_RUN.duration
+                        },
+                    }));
+                    ws.close(1000, 'Builder run completed');
+                    return
+                }
+
+
+                // This function listens to the specified builderIndexes readable stream and sends the data to the client
+                function msgHandler(runningBuilderIndex:number){
+
+                    // Fetch the runningBuilder object from the runningBuilders array
+                    const RUNNING_BUILDER = runningBuilders.find(builder => builder.dbID == RUN_ID);
+                    if(!RUNNING_BUILDER){
+                        Logger.error(`Running builder with index ${runningBuilderIndex} not found`);
+                        ws.close(1000, 'Running builder not found');
+                        return
+                    }
+                    Logger.error(`Listening to running builder with ID ${RUNNING_BUILDER.dockerID}`);
+                    let oldStatus = RUNNING_BUILDER.status;
+                    // If the runningBuilder has a stream, we listen to it
+                    EVENT_EMITTER.on(`data${RUNNING_BUILDER.dbID}`, () => {
+                        if(RUNNING_BUILDER.status !== oldStatus){
+                            ws.send(JSON.stringify({
+                                msgType: 'statusUpdate',
+                                data: RUNNING_BUILDER.status,
+                            }))
+                            oldStatus = RUNNING_BUILDER.status;
+                        }
+                        // Get the latest line from the output string
+                        const latestLine = RUNNING_BUILDER.output.split('\n').slice(-2, -1)[0]; // Get the second last line to avoid sending an empty line
+                        ws.send(JSON.stringify({
+                            msgType: 'output',
+                            data: latestLine,
+                        }));
+                    })
+
+                    // We also listen to the builderExited event to close the WebSocket connection when the builder exits
+                    EVENT_EMITTER.on('builderExited', async (data:{id:string, runID:number, reason: 'FAILED' | 'SUCCESS'}) => {
+                        if(data.runID != RUNNING_BUILDER.dbID) return; // Ignore events for other builders
+                        Logger.debug(`Received builderExited event for runID ${data.runID} with reason ${data.reason}`);
+                        // Fetch the run from the database
+                        const run = await DB.getBuilderRun(RUN_ID)
+                        ws.send(JSON.stringify({
+                            msgType: 'final',
+                            data: {
+                                status: data.reason,
+                                ended_at: new Date().toISOString(),
+                                runID: RUNNING_BUILDER.dbID,
+                                duration: run ? run.duration : 'not available',
+                            },
+                        }));
+                        ws.close(1000, `Builder run ${data.reason}`);
+                    })
+                }
+
+                // If the builder is QUEUED then there's no stream that we can listen too at the moment so we listen to the builderStarted event instead
+                if(BUILDER_RUN.status === 'QUEUED'){
+
+                    let alreadyListening = false
+                    // Listen for the builderStarted event to get the runningBuilder index
+                    EVENT_EMITTER.on('builderStarted', (data) => {
+                        Logger.debug('Received builderStarted event in WebSocket listener');
+                        if(data.runID != RUN_ID) return; // Ignore events for other builders
+                        if(alreadyListening) return; // If we are already listening, we don't need to switch to the stream listener again
+                        alreadyListening = true; // Set the flag to true to avoid switching again
+                        const RUNNING_BUILDER_INDEX = data.runningBuilderIndex;
+                        const RUNNING_BUILDER = runningBuilders.find(builder => builder.dbID == RUN_ID);
+                        ws.send(JSON.stringify({
+                            msgType: 'statusUpdate',
+                            data: RUNNING_BUILDER ? RUNNING_BUILDER.status: 'UNKNOWN',
+                        }))
+                        msgHandler(RUNNING_BUILDER_INDEX);
+                    });
+                }
+                else{
+                    // If the builder is not QUEUED, we can listen to the stream directly
+                    const RUNNING_BUILDER_INDEX = runningBuilders.findIndex(builder => builder.dbID == RUN_ID);
+                    if(RUNNING_BUILDER_INDEX === -1){
+                        Logger.error(`Running builder with runID ${RUN_ID} not found ${RUNNING_BUILDER_INDEX}`);
+                        ws.close(1000, 'Running builder not found');
+                        return;
+                    }
+                    msgHandler(RUNNING_BUILDER_INDEX);
+                }
+            }
+            wrap()
         }, // a socket is opened
-        close(ws, code, message) {}, // a socket is closed
+        close(ws, code, message) {
+
+        }, // a socket is closed
     },
     port: parseInt(PORT),
     hostname: INTERFACE,

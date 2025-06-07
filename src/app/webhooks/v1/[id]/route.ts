@@ -45,7 +45,7 @@ export async function POST(req:NextRequest, {params}: {params: {id: string}}) {
     }
 
     // We currently do not need to do anything with the webhook body so we just start the build and return a 200 OK response as well as the listen URL
-    const runID = await fetch(`${process.env.FRONTEND_SCHEDULER_HOST as string}/api/v1/queue`, {
+    const runID = await fetch(`http://${process.env.FRONTEND_SCHEDULER_HOST as string}/api/v1/queue`, {
         headers: {
             "authorization" : `Bearer ${process.env.SCHEDULER_AUTHKEY}`,
             "Content-Type": "application/json",

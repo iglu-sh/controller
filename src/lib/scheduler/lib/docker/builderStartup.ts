@@ -75,6 +75,7 @@ export default async function builderStartup(dockerID: string, name: string, DOC
             read(){
                 this.push(`Starting build for builder ${name} with ID ${dockerID}\n`);
             }
-        })
+        }),
+        status: 'STARTING'
     })
 }

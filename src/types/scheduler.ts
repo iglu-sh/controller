@@ -34,5 +34,6 @@ export type runningBuilder = {
     ip: string,
     dbID: number,
     output: string,
-    stream: Readable
+    stream: Readable,
+    status: 'QUEUED' | 'STARTING' | 'RUNNING' | 'FINISHED' | 'FAILED',
 }

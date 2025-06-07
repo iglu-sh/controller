@@ -44,6 +44,8 @@ export async function POST(request: NextRequest){
     let cachixPublicSigningKey = body.cachix.cachixPublicSigningKey
     let apiKeyID = undefined;
     let pskID = undefined
+
+    //@ts-ignore
     const requestKey = request.headers.get("authorization").split(" ")[1];
     if(body.cachix.mode === "auto"){
         //Create a new Public-Private Keypair for the User
@@ -242,7 +244,7 @@ export async function POST(request: NextRequest){
         }
         await db.createBuilder(builderConfig, cacheID)
         await db.close()
-        await fetch(`${process.env.SCHEDULER_INTERFACE}:${process.env.SCHEDULER_PORT}/api/v1/refresh/config`, {
+        await fetch(`http://${process.env.FRONTEND_SCHEDULER_HOST}/api/v1/refresh/config`, {
             headers: {
                 authorization: `Bearer ${process.env.SCHEDULER_AUTHKEY}`
             },

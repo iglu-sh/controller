@@ -14,7 +14,7 @@ export default function builder(config: builderDatabase, runningBuilder: running
     id: string;
     runID: number;
     reason: "FAILED" | "SUCCESS";
-}) => Promise<void>){
+}) => Promise<void>, informNewData: ()=>void, updateStatus: (status: string) => void): void {
     Logger.debug(`Starting builder with ID ${runningBuilder.dockerID} and name ${config.builder.name}`);
     //Create a new WebSocket
     const WS = new WebSocket(`ws://${runningBuilder.ip}:3000/api/v1/build`);
@@ -62,13 +62,16 @@ export default function builder(config: builderDatabase, runningBuilder: running
 
         //On WebSocket message, handle the incoming messages
         WS.onmessage = async (event) => {
+            Logger.debug(`WebSocket message received for builder ${config.builder.name} with ID ${runningBuilder.dockerID}: ${event.data.toString()}`);
             const data = JSON.parse(event.data.toString())
+
             if(data.jobStatus != jobStatus){
                 jobStatus = data.jobStatus
                 await DB.updateBuilderRun(runningBuilder.dbID, jobStatus, runningBuilder.output)
+                updateStatus(jobStatus)
             }
             runningBuilder.output += `${event.data.toString()}\n`
-            runningBuilder.stream.push(`${event.data.toString()}`)
+            informNewData()
         }
 
         WS.onerror = async (error) => {
