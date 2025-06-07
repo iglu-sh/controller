@@ -11,6 +11,7 @@ const handle = app.getRequestHandler();
 process.env.SCHEDULER_INTERFACE = process.env.SCHEDULER_INTERFACE || "localhost";
 process.env.SCHEDULER_PORT = process.env.SCHEDULER_PORT || "3002";
 process.env.SCHEDULER_AUTHKEY = process.env.SCHEDULER_AUTHKEY || await getWebhookURLPart();
+process.env.FRONTEND_SCHEDULER_HOST = `http://${process.env.SCHEDULER_INTERFACE}:${process.env.SCHEDULER_PORT}`;
 
 Bun.spawn(["bun", "run", "src/lib/scheduler/index.ts"], {
     stdout: "inherit",

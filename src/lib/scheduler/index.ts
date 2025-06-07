@@ -56,6 +56,11 @@ if(!DOCKER.getNetwork('iglu-nw')) {
     });
 }
 
+//Pull the latest builder image from the Docker registry
+Logger.info('Pulling the latest builder image from ghcr.io/iglu-sh/iglu-builder:latest');
+const pullStream = await DOCKER.pull('ghcr.io/iglu-sh/iglu-builder:latest')
+await new Promise(res => DOCKER.modem.followProgress(pullStream, res))
+
 // Close the database connection when the process exits
 process.on('beforeExit', async () => {
     Logger.info('Closing database connection...');
@@ -106,7 +111,7 @@ async function builderExitedCallback(data:{id:string, runID:number, reason: 'FAI
     Logger.info(`Received builderExited event for builder with ID ${data.id} and reason ${data.reason}`);
     const BUILDER = runningBuilders.find(builder => builder.dockerID === data.id);
     await end(BUILDER, data.reason, DOCKER, DB, data.id, data.runID, removeRunningBuilder);
-    await refreshQueue(builderConfig, queue, runningBuilders, DB, DOCKER);
+    EVENT_EMITTER.emit('queueRefresh');
 }
 
 //Listen for builderFailed event
@@ -143,9 +148,10 @@ function removeRunningBuilder(dockerID:string){
 * Function that adds a new builder to the queue and then emits the queueRefresh event
 * */
 async function addBuildToQueue(id:number){
-
-    queue = await queueBuild(builderConfig, queue, runningBuilders, DB, id)
+    const returnObj = await queueBuild(builderConfig, queue, runningBuilders, DB, id)
+    queue = returnObj.queue;
     EVENT_EMITTER.emit('queueRefresh');
+    return returnObj.runID // Return the last added builder in the queue
 }
 
 
@@ -163,13 +169,7 @@ async function initializeBuilders() {
 }
 await initializeBuilders()
 
-
-await addBuildToQueue(1)
-
-
-
-
-
+//await addBuildToQueue(1)
 //Middleware to check if the request is authenticated
 const isAuthenticated = (req:BunRequest) => {
     const authHeader = req.headers.get('Authorization');
@@ -186,17 +186,82 @@ Bun.serve({
         '/': async (req) => {
             return new Response('Scheduler is running', { status: 200 });
         },
-        '/refresh': async (req) => {
+        /*
+        * API Endpoint to refresh available builders
+        * */
+        '/api/v1/refresh/config': async (req) => {
             if (!isAuthenticated(req)) {
                 return new Response('Unauthorized', { status: 401 });
             }
             try {
+                await initializeBuilders();
                 return new Response('Builder config refreshed', { status: 200 });
             } catch (error) {
                 console.error('Error refreshing builder config:', error);
                 return new Response('Failed to refresh builder config', { status: 500 });
             }
         },
+        '/api/v1/queue': async (req) => {
+            if (!isAuthenticated(req)) {
+                return new Response('Unauthorized', { status: 401 });
+            }
+            if(req.method !== 'POST'){
+                return new Response('Method Not Allowed', { status: 405});
+            }
+            try {
+                Logger.logRequest('/api/v1/queue', 'POST');
+
+                const body = await req.json();
+                if(!body.builderID){
+                    return new Response('Malformed Request: builderID is required', { status: 400 });
+                }
+
+                const builderID = parseInt(body.builderID);
+                if(isNaN(builderID)){
+                    return new Response('Malformed Request: builderID must be a number', { status: 400 });
+                }
+
+                // Check if the builder exists in the builderConfig
+                const builderConfigItem = builderConfig.find(config => config.builder.id === builderID);
+                if (!builderConfigItem) {
+                    return new Response(`Builder with ID ${builderID} not found`, { status: 404 });
+                }
+                // Add the build to the queue
+                const queuedBuilder = await addBuildToQueue(builderID);
+                Logger.info(`Builder with ID ${builderID} added to the queue (runID: ${queuedBuilder})`);
+
+                return new Response(JSON.stringify({ runID: queuedBuilder }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } catch (error) {
+                console.error('Error refreshing builder config:', error);
+                return new Response('Failed to start builder', { status: 500 });
+            }
+        },
+        '/api/v1/listen': async (req, server) => {
+            if (!isAuthenticated(req)) {
+                return new Response('Unauthorized', { status: 401 });
+            }
+            try {
+                // upgrade the request to a WebSocket
+                if (server.upgrade(req)) {
+                    //return; // do not return a Response
+                }
+                return new Response("Upgrade failed", { status: 500 });
+            } catch (error) {
+                console.error('Error refreshing builder config:', error);
+                return new Response('Failed to refresh builder config', { status: 500 });
+            }
+        },
+    },
+    websocket: {
+        //TODO: Implement Websocket handling
+        message(ws, message) {}, // a message is received
+        open(ws) {
+            ws.send(JSON.stringify({"test":"test"}))
+        }, // a socket is opened
+        close(ws, code, message) {}, // a socket is closed
     },
     port: parseInt(PORT),
     hostname: INTERFACE,

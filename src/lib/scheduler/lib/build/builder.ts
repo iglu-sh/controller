@@ -15,7 +15,7 @@ export default function builder(config: builderDatabase, runningBuilder: running
     runID: number;
     reason: "FAILED" | "SUCCESS";
 }) => Promise<void>){
-    Logger.warn(`Starting builder with ID ${runningBuilder.dockerID} and name ${config.builder.name}`);
+    Logger.debug(`Starting builder with ID ${runningBuilder.dockerID} and name ${config.builder.name}`);
     //Create a new WebSocket
     const WS = new WebSocket(`ws://${runningBuilder.ip}:3000/api/v1/build`);
     const EVENT_EMITTER = new event.EventEmitter()
@@ -51,8 +51,9 @@ export default function builder(config: builderDatabase, runningBuilder: running
                 }
             }
         }
-        const OUTPUT = runningBuilder.output.toString()
+
         let jobStatus = ''
+
         //On WebSocket open, send the builder configuration
         WS.onopen = async ()=>{
             WS.send(JSON.stringify(BUILDER_SCHEMA))
@@ -61,7 +62,6 @@ export default function builder(config: builderDatabase, runningBuilder: running
 
         //On WebSocket message, handle the incoming messages
         WS.onmessage = async (event) => {
-            console.log(event)
             const data = JSON.parse(event.data.toString())
             if(data.jobStatus != jobStatus){
                 jobStatus = data.jobStatus
@@ -72,13 +72,12 @@ export default function builder(config: builderDatabase, runningBuilder: running
         }
 
         WS.onerror = async (error) => {
-            console.error(error)
+            Logger.error(`WebSocket error for builder ${config.builder.name} with ID ${runningBuilder.dockerID}: ${error}`);
         }
 
         //When a Websocket connection is closed, we need to handle it gracefully
         //This is determined by looking at the close code and reason
         WS.onclose = async (reason) => {
-            console.log(reason.code, reason.reason)
             if(!reason.wasClean){
                 await builderExitedCallback({
                     id: runningBuilder.dockerID,
@@ -101,7 +100,7 @@ export default function builder(config: builderDatabase, runningBuilder: running
         // and we also call the end() function with the containerID to end the container.
         // This is most likely a fatal error, so we should set this build as failed
         Logger.error(`Error building config ${config.builder.name} with ID ${runningBuilder.dockerID}: ${error}`);
-        EVENT_EMITTER.emit('builderExited', {
+        builderExitedCallback({
             id: runningBuilder.dockerID,
             runID: runningBuilder.dbID,
             reason: 'FAILED'

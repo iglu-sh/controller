@@ -44,10 +44,7 @@ export default async function refreshQueue(
     if (!BUILDER_CONFIG) {
         throw new Error(`Builder config with ID ${nextBuilder.builderID} not found`);
     }
-
     await start(nextBuilder.builderID, nextBuilder.runID, builderConfigs, DOCKER);
-
-
     return queue;
 }
 
@@ -58,18 +55,27 @@ export async function queueBuild(
     runningBuilders: Array<runningBuilder>,
     DB: Database,
     id:number,
-):Promise<Array<{builderID:number, runID:number}>> {
+):Promise<{runID:number, queue:Array<{builderID:number, runID:number}>}> {
     Logger.debug(`queueBuild: Adding builder with ID ${id} to the queue`);
 
     // Get the builder config of this build
     const BUILDER_CONFIG = builderConfigs.find(config => config.builder.id === id);
 
+    if(!BUILDER_CONFIG) {
+        Logger.error(`queueBuild: Builder config with ID ${id} not found`);
+        throw new Error(`Builder config with ID ${id} not found`);
+    }
+
     // If parallelBuilds is set to false, check if there is already a builder running for this config
     if (BUILDER_CONFIG && !BUILDER_CONFIG.buildoptions.parallelbuilds) {
+        Logger.debug(`queueBuild: Parallel builds are disabled for builder with ID ${id}. Checking for existing builders.`);
         const existingBuilder = runningBuilders.find(builder => builder.id === id);
-        if (existingBuilder) {
+
+        const existingQueueItem = queue.find(item => item.builderID === id);
+        if (existingBuilder || existingQueueItem) {
+            Logger.debug(`queueBuild: A builder with ID ${id} is already running. Returning existing queue.`);
             // If there is already a builder running for this config, we return the current queue
-            return queue;
+            return {runID: -1, queue:queue};
         }
     }
 
@@ -80,5 +86,5 @@ export async function queueBuild(
     queue.push({builderID: id, runID});
 
     // Refresh the queue to start the next builder if there is space
-    return queue;
+    return {runID: runID, queue:queue};
 }

@@ -665,4 +665,11 @@ export default class Database{
         `, [status, log, builderRunID]);
     }
 
+    public async getBuilderConfigByWebhookURL(webhookURL:string):Promise<{id:string, cache_id:string} | null>{
+        const res = await this.client.query(`
+            SELECT id, cache_id FROM cache.builder WHERE webhookurl = $1
+        `, [webhookURL]);
+
+        return res.rows[0]
+    }
 }

@@ -238,11 +238,11 @@ export async function POST(request: NextRequest){
                 }
             },
             //Generate a 128 character long random string for the webhook URL
-            webhookURL: `/webhooks/${cacheID}/builder/${await getWebhookURLPart()}`
+            webhookURL: `/webhooks/v1/${await getWebhookURLPart()}`
         }
         await db.createBuilder(builderConfig, cacheID)
         await db.close()
-        await fetch(`${process.env.SCHEDULER_INTERFACE}:${process.env.SCHEDULER_PORT}/refresh`, {
+        await fetch(`${process.env.SCHEDULER_INTERFACE}:${process.env.SCHEDULER_PORT}/api/v1/refresh/config`, {
             headers: {
                 authorization: `Bearer ${process.env.SCHEDULER_AUTHKEY}`
             },
