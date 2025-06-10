@@ -9,6 +9,7 @@ import generateCachixKey from "@/lib/api/generateCachixKey";
 import {builder, builderDatabaseRepresenation} from "@/types/api";
 import {getWebhookURLPart} from "@/lib/api/webhookURL";
 import Scheduler from "@/lib/scheduler/scheduler";
+import {dbBuilder} from "@/types/db";
 
 export async function POST(request: NextRequest){
     //Check if evertyhing is present
@@ -261,4 +262,31 @@ export async function POST(request: NextRequest){
         status = 500;
     }
     return NextResponse.json(returnBody, {status: status});
+}
+
+// GET request to fetch all builders for a cache
+export async function GET(request: NextRequest){
+    const cacheID = request.nextUrl.searchParams.get("cacheID");
+    if(!cacheID || isNaN(parseInt(cacheID))){
+        return NextResponse.json({"error": "Invalid Request"}, {status: 400})
+    }
+    let isAuthenticated = await auth(request, cacheID)
+    if(!isAuthenticated){
+        return NextResponse.json({"error":"Forbidden"}, {status: 403});
+    }
+
+    //Create a new Database instance
+    const db = new Database();
+
+    try{
+        //Get all builders for the cache
+        const builders= await db.getBuildersByCacheID(cacheID);
+        await db.close();
+        return NextResponse.json(builders, {status: 200});
+    }
+    catch(error){
+        console.error("Failed to get builders for cache", error);
+        await db.close();
+        return NextResponse.json({"error": "Internal Server Error"}, {status: 500});
+    }
 }

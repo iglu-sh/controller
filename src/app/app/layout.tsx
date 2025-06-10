@@ -204,7 +204,7 @@ export default function CacheOverviewPageLayout(
                         <Navbar />
                     </div>
                 </div>
-                <div style={{marginLeft: "auto", marginRight: "auto", maxWidth: "900px", marginTop: "20px"}}>
+                <div style={{marginLeft: "auto", marginRight: "auto", maxWidth: "900px", marginTop: "20px"}} className="h-full">
                     {children}
                 </div>
             </div>

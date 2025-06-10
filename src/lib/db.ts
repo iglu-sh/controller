@@ -2,7 +2,7 @@ import {Client} from "pg";
 import 'dotenv/config'
 import {builderDatabaseRepresenation, cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
 import {CacheCreationRequest, FrontendKey} from "@/types/frontend";
-import {builderDatabase} from "@/types/db";
+import {builder, builderDatabase, dbBuilder} from "@/types/db";
 
 export default class Database{
     client: Client;
@@ -692,5 +692,20 @@ export default class Database{
         }
 
         return res.rows[0];
+    }
+
+    public async getBuildersByCacheID(cacheID:string):Promise<Array<dbBuilder>>{
+        const res = await this.client.query(`
+            SELECT row_to_json(cb.*) as builder, row_to_json(cc.*) as cachix, row_to_json(bo.*) as buildoptions, row_to_json(gc.*) as git, row_to_json(ca.*) as cache,
+                   (SELECT row_to_json(br.*) FROM cache.builder_runs br WHERE br.builder_id = cb.id ORDER BY br.started_at DESC LIMIT 1) as lastrun
+            FROM cache.builder cb
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                     INNER JOIN cache.caches ca ON ca.id = cc.target
+            WHERE ca.id = $1
+            GROUP BY cb.id, cc.id, bo.id, gc.id, ca.id;
+        `, [cacheID])
+        return res.rows
     }
 }

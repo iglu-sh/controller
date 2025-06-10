@@ -55,3 +55,7 @@ export type builderRun = {
     duration: number, // in seconds
     log: string
 }
+
+export interface dbBuilder extends builderDatabase {
+    lastrun: builderRun | null;
+}

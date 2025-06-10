@@ -117,6 +117,10 @@ async function builderStartedCallback(data:{id:string, name:string}) {
 
     builder(builderConfig[CONFIG_INDEX], runningBuilders[RUNNING_BUILDER_INDEX], DB, builderExitedCallback, ()=>{EVENT_EMITTER.emit(`data${builderInfo.dbID}`)}, (status)=>{
         // Update the status of the builder in the runningBuilders array
+        if(!runningBuilders[RUNNING_BUILDER_INDEX]) {
+            Logger.error(`Failed to find running builder with index ${RUNNING_BUILDER_INDEX}`);
+            return;
+        }
         runningBuilders[RUNNING_BUILDER_INDEX].status = status as any;
     })
 }

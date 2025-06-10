@@ -39,7 +39,6 @@ export function DataTable<TData, TValue>({
         rowCount: rowCount ? rowCount : undefined,
         pageCount: pageCount ? pageCount : undefined,
     })
-    console.log('Using rowCount:', rowCount, pageCount)
     return (
         <div className={`rounded-md border ${loading ? 'opacity-40' : ''}`}>
             <Table>
