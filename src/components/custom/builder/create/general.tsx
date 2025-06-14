@@ -8,23 +8,50 @@ import {Separator} from "@/components/ui/separator";
 import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {Save} from "lucide-react";
+import {BuilderCreationRequest} from "@/types/frontend";
 
-export default function General(){
+export default function General({data, setData}:{data:BuilderCreationRequest, setData:(data: BuilderCreationRequest) => void}) {
     const [requiresAuth, setRequiresAuth] = useState(false);
     const [buildOption, setBuildOption] = useState('manual');
     return(
         <div className="flex flex-col gap-4 w-full mt-3">
             <div className="flex flex-col space-y-2 w-full">
                 <label className="">Configuration Name</label>
-                <Input type="text" placeholder="Enter configuration name"></Input>
+                <Input type="text" placeholder="Enter configuration name" onChange={(e)=>{
+                    setData({
+                        ...data,
+                        name: e.target.value
+                    })
+                }}></Input>
             </div>
             <div className="flex flex-col space-y-2 w-full">
                 <label className="">Description</label>
-                <Textarea placeholder="Enter configuration description" />
+                <Textarea placeholder="Enter configuration description" onChange={(e)=>{
+                    setData({
+                        ...data,
+                        description: e.target.value
+                    })
+                }}/>
             </div>
             <div className="flex flex-col space-y-2 w-full">
                 <label>Git Repository URL</label>
-                <Input type="url" placeholder="Enter configuration Git repository URL" />
+                <Input type="url" placeholder="Enter configuration Git repository URL"
+                    onChange={(e)=>{
+                        const val = e.target.value;
+                        let noClone = false;
+                        if(val === "" || !val.startsWith("http") || !val.startsWith("https") || !val){
+                            noClone = true;
+                        }
+                        setData({
+                            ...data,
+                            git: {
+                                ...data.git,
+                                url: e.target.value,
+                                noClone: noClone,
+                            }
+                        })
+                    }}
+                />
                 <div className="text-muted-foreground text-sm">
                     You may also not provide git settings and use a nix command in the format of: nix build github:repo_name/flake_name#my-derivation
                 </div>
@@ -32,25 +59,36 @@ export default function General(){
             <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-2 w-full">
                     <label>Branch</label>
-                    <Input type="text" placeholder="Enter branch name" />
-                </div>
-                <div className="flex flex-col space-y-2 w-full">
-                   <label>Config Type</label>
-                    <Select required>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select configuration type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="nix">configuration.nix</SelectItem>
-                            <SelectItem value="flake">flake.nix</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Input type="text" placeholder="Enter branch name" onChange={(e)=>{
+                        let val = e.target.value;
+
+                        // If noClone is set to false and there is no value, set it to "main"
+                        if(!data.git.noClone && val === "") {
+                            val = "main";
+                        }
+                        setData({
+                            ...data,
+                            git: {
+                                ...data.git,
+                                branch: val
+                            }
+                        })
+                    }} />
                 </div>
             </div>
             <div className="grid grid-cols-2 space-y-2 w-full">
                 <label>Repository requires authentication</label>
                 <div className="flex items-center justify-end">
-                    <Switch onCheckedChange={()=>setRequiresAuth(!requiresAuth)}/>
+                    <Switch onCheckedChange={()=>{
+                        setRequiresAuth(!requiresAuth)
+                        setData({
+                            ...data,
+                            git: {
+                                ...data.git,
+                                requiresAuth: !requiresAuth
+                            }
+                        })
+                    }}/>
                 </div>
                 {
                     requiresAuth ? (
@@ -59,13 +97,33 @@ export default function General(){
                                 <label>
                                     Username
                                 </label>
-                                <Input type="text" placeholder="Enter username" required />
+                                <Input type="text" placeholder="Enter username" required
+                                    onChange={(e)=>{
+                                        setData({
+                                            ...data,
+                                            git: {
+                                                ...data.git,
+                                                username: e.target.value
+                                            }
+                                        })
+                                    }}
+                                />
                             </div>
                             <div className="flex flex-col space-y-2">
                                 <label>
                                     Password / Token
                                 </label>
-                                <Input type="password" placeholder="Enter password" required />
+                                <Input type="password" placeholder="Enter password" required
+                                    onChange={(e)=>{
+                                        setData({
+                                            ...data,
+                                            git: {
+                                                ...data.git,
+                                                token: e.target.value
+                                            }
+                                        })
+                                    }}
+                                />
                             </div>
                             <div className="text-muted-foreground text-sm col-span-2">
                                 For Github/Gitlab, you have to use a personal access token with the 'repo' scope instead of a password.
@@ -76,20 +134,43 @@ export default function General(){
                 }
             </div>
             <div className="text-muted-foreground text-sm">
-                Git command to be run: git clone <span className="text-primary">[repository URL]</span> --branch <span className="text-primary">[branch]</span>
+                Git command to be run: git clone <span className="text-primary">{
+                    data.git.noClone ? "[repository URL]" : `${data.git.url}`
+            }</span> --branch <span className="text-primary">{
+                data.git.noClone && data.git.branch ? "[branch name]" : `${data.git.branch || "main"}`
+            }</span>
             </div>
             <Separator />
             <div className="flex flex-col space-y-2">
                 <label>
                     Build Command
                 </label>
-                <Input type="text" placeholder="eg. nix-build default.nix or nix build .#my-derivation"/>
+                <Input type="text" placeholder="eg. nix-build default.nix or nix build .#my-derivation"
+                    onChange={(e)=>{
+                        setData({
+                            ...data,
+                            build: {
+                                ...data.build,
+                                command: e.target.value
+                            }
+                        })
+                    }}
+                />
             </div>
             <div className="flex flex-col space-y-2">
                 <label>
                     Build Trigger
                 </label>
-                <Select defaultValue="manual" onValueChange={(value)=> setBuildOption(value)}>
+                <Select defaultValue="manual" onValueChange={(value)=> {
+                    setData({
+                        ...data,
+                        build: {
+                            ...data.build,
+                            buildTrigger: value as "manual" | "webhook" | "cron",
+                        }
+                    })
+                    setBuildOption(value)
+                }}>
                     <SelectTrigger>
                         <SelectValue placeholder="Select configuration type" />
                     </SelectTrigger>
@@ -102,7 +183,25 @@ export default function General(){
                 {
                      buildOption === "cron" ? (
                         <div className="flex flex-col space-y-2">
-                            <Input type="text" placeholder="Cron" required />
+                            <Input type="text" placeholder="Cron" required
+                                onChange={(e)=>{
+                                    let val = e.target.value;
+
+                                    // Check if the value is a cron expression
+                                    const cronRegex = /^(\*|([0-5]?\d)) (\*|([01]?\d|2[0-3])) (\*|[1-9]|1[0-2]) (\*|[1-9]|[12]\d|3[01]) (\*|[0-6])$/;
+                                    if(!cronRegex.test(val)) {
+                                        val = "";
+                                    }
+                                    setData({
+                                        ...data,
+                                        build: {
+                                            ...data.build,
+                                            buildTrigger: "cron",
+                                            cron: val
+                                        }
+                                    })
+                                }}
+                            />
                             <div className="text-muted-foreground text-sm col-span-2">
                                 Cron expression to run the build. For example, <strong>0 0 * * *</strong> will run the build every day at midnight.
                             </div>
@@ -123,15 +222,6 @@ export default function General(){
                         </div>
                     ) : null
                 }
-            </div>
-            <div className="flex flex-col space-y-2">
-                <label>
-                    Output Directory
-                </label>
-                <Input type="text" placeholder="eg. result or ./result" defaultValue="./result" />
-                <div className="text-muted-foreground text-sm">
-                    You'll have to change this setting <strong>only</strong> if you are using a custom build command that changes the output location of your build. This is important for cachix to push to the cache
-                </div>
             </div>
         </div>
     )

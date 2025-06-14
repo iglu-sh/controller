@@ -82,7 +82,7 @@ function RunBuilder({ builder }: { builder: dbBuilder }) {
                             <DialogClose asChild>
                                 <Button variant="outline" className="w-full">Go back</Button>
                             </DialogClose>
-                            <a href={`/app/builder/run/${runId}`} className="w-full">
+                            <a href={`/app/builders/run/${runId}`} className="w-full">
                                 <Button className="w-full">Go to run</Button>
                             </a>
                         </div>

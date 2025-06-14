@@ -107,7 +107,7 @@ export default function CacheOverviewPageLayout(
                             <DropdownMenuTrigger asChild>
                                 <SidebarMenuButton className="flex flex-row">
                                     {id === "all" ? <div className="flex flex-row items-center"><Globe className="mr-2 h-4 w-4"/>All Caches</div> :
-                                        <div className="flex flex-row items-center"><HardDriveIcon className="mr-2 h-4 w-4" />{caches ? caches.caches?.filter((cache)=>cache.id.toString() == id)[0].name : null}</div>}
+                                        <div className="flex flex-row items-center"><HardDriveIcon className="mr-2 h-4 w-4" />{caches ? caches.caches?.filter((cache)=>cache.id.toString() == id)[0]?.name : null}</div>}
                                     <ChevronDown className="ml-auto" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>

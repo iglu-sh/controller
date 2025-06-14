@@ -31,7 +31,9 @@ export type builderDatabase = {
         target: string,
         apikey: string,
         signingkey: string,
-        cachixoushsourcedir: string,
+        builder_id: number,
+        buildoutputdir: string,
+        id: number
     },
     cache: {
         id: number,
@@ -45,17 +47,23 @@ export type builderDatabase = {
     }
 }
 
-export type builderRun = {
+export type builderRunLite = {
     id: number,
     builderId: number,
-    status: "queued" | "running" | "success" | "failed" | "cancelled",
+    status: "QUEUED" | "RUNNING" | "SUCCESS" | "FAILED" | "CANCELLED",
     started_at: Date,
     finished_at: Date,
     gitCommit: string,
     duration: number, // in seconds
-    log: string
 }
 
+export interface builderRun extends builderRunLite {
+    log: string
+}
 export interface dbBuilder extends builderDatabase {
     lastrun: builderRun | null;
+}
+
+export interface builderFrontendPackage extends builderDatabase{
+    runs: builderRun[];
 }

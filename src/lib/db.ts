@@ -2,7 +2,7 @@ import {Client} from "pg";
 import 'dotenv/config'
 import {builderDatabaseRepresenation, cache, cacheCreationObject, key, userInfoObject} from "@/types/api";
 import {CacheCreationRequest, FrontendKey} from "@/types/frontend";
-import {builder, builderDatabase, dbBuilder} from "@/types/db";
+import {builder, builderDatabase, builderFrontendPackage, dbBuilder} from "@/types/db";
 
 export default class Database{
     client: Client;
@@ -113,11 +113,14 @@ export default class Database{
     async getCachesForKey(key: string):Promise<cache[]>{
         const hash = this.getHashedKey(key);
         const res = await this.client.query(`
-            SELECT c.* 
+            SELECT c.*, json_agg(psk.*) as publicsigningkeys
             FROM cache.keys 
                 INNER JOIN cache.cache_key ON keys.id = cache_key.key_id
                 INNER JOIN cache.caches c ON c.id = cache_key.cache_id 
+                INNER JOIN cache.signing_key_cache_api_link skcal ON c.id = skcal.cache_id
+                INNER JOIN cache.public_signing_keys psk ON skcal.signing_key_id = psk.id
             WHERE hash = $1
+            GROUP BY c.id;
         `, [hash]);
         return res.rows;
     }
@@ -573,7 +576,7 @@ export default class Database{
         return res
     }
 
-    public async createBuilder(config:builderDatabaseRepresenation, cacheID:string){
+    public async createBuilder(config:builderDatabaseRepresenation, cacheID:string):Promise<number>{
         await this.client.query(`
             START TRANSACTION; 
              `)
@@ -644,6 +647,7 @@ export default class Database{
         await this.client.query(`
             COMMIT TRANSACTION;
         `)
+        return id;
     }
 
     public async createBuilderRun(builderId:number, gitCommit:string, status:string, log:string):Promise<number>{
@@ -707,5 +711,40 @@ export default class Database{
             GROUP BY cb.id, cc.id, bo.id, gc.id, ca.id;
         `, [cacheID])
         return res.rows
+    }
+
+    public async getBuilderByID(id:string):Promise<builderFrontendPackage | undefined>{
+        //This might as well be the most ugly query I have ever written but it works for now and if you have a better way to do this please let me know
+        const res = await this.client.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix,
+                   row_to_json(bo.*) as buildoptions,
+                   row_to_json(gc.*) as git,
+                   row_to_json(ca.*) as cache,
+                   (
+                       SELECT json_agg(builder) FROM (
+                             SELECT json_build_object(
+                                            'id', br.id,
+                                            'builder_id', br.builder_id,
+                                            'status', br.status,
+                                            'started_at', br.started_at,
+                                            'ended_at', br.ended_at,
+                                            'gitcommit', br.gitcommit,
+                                            'duration', br.duration) as builder
+                             FROM cache.builder_runs br
+                             WHERE br.builder_id = $1
+                             ORDER BY br.started_at DESC
+                             LIMIT 50
+                         ) as c
+                   ) as runs
+            FROM cache.builder cb
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                     INNER JOIN cache.caches ca ON ca.id = cc.target
+            WHERE cb.id = $1
+            GROUP BY cb.id, cc.id, bo.id, gc.id, ca.id;
+        `, [id])
+        return res.rows[0]
     }
 }

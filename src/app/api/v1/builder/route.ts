@@ -200,6 +200,7 @@ export async function POST(request: NextRequest){
         //Insert the builder config into the database
         const builderConfig:builderDatabaseRepresenation = {
             name: body.name,
+            id: -1,
             description: body.description,
             enabled: true,
             trigger: body.build.buildTrigger,
@@ -207,8 +208,8 @@ export async function POST(request: NextRequest){
             git: {
                 noClone: body.git.noClone,
                 requiresAuth: body.git.requiresAuth,
-                repository: body.git.noClone? body.git.url : "no-clone",
-                branch: body.git.noClone? body.git.branch : "no-clone",
+                repository: !body.git.noClone? body.git.url : "no-clone",
+                branch: !body.git.noClone? body.git.branch : "no-clone",
                 gitUsername: body.git.requiresAuth ? body.git.username : "no-auth",
                 gitKey: body.git.requiresAuth ? body.git.token : "no-auth",
             },
@@ -243,7 +244,7 @@ export async function POST(request: NextRequest){
             //Generate a 128 character long random string for the webhook URL
             webhookURL: `/webhooks/v1/${await getWebhookURLPart()}`
         }
-        await db.createBuilder(builderConfig, cacheID)
+        builderConfig.id = await db.createBuilder(builderConfig, cacheID)
         await db.close()
         await fetch(`http://${process.env.FRONTEND_SCHEDULER_HOST}/api/v1/refresh/config`, {
             headers: {
@@ -289,4 +290,9 @@ export async function GET(request: NextRequest){
         await db.close();
         return NextResponse.json({"error": "Internal Server Error"}, {status: 500});
     }
+}
+
+// DELETE request to delete a builder
+export async function DELETE(request: NextRequest){
+
 }

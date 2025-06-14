@@ -99,7 +99,7 @@ const columns: ColumnDef<Cache>[] = [
             }
             //Cut the keys to 20 characters
             return (
-                <div style={{display: "flex", flexDirection:"row"}}>{keys.slice(0, 20)}...
+                <div style={{display: "flex", flexDirection:"row"}}>{keys.map((key)=>{return key.key}).join(" ").slice(0, 20)}...
                     <Copy
                     style={{marginLeft: "10px"}}
                     onClick={()=>{

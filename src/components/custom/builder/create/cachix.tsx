@@ -1,19 +1,59 @@
 'use client'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from "@/components/ui/select";
 import {Input} from "@/components/ui/input";
 import {Switch} from "@/components/ui/switch";
+import {BuilderCreationRequest} from "@/types/frontend";
+import {getCookie} from "cookies-next";
+import {toast} from "sonner";
+import {cache} from "@/types/api";
 
-export default function Cachix(){
+export default function Cachix({data, setData, setTargetCache}:{data:BuilderCreationRequest, setData:(data: BuilderCreationRequest) => void, setTargetCache:(cache: string) => void}) {
     const [mode, setMode] = useState("auto");
+    const [caches, setCaches] = useState<cache[]>([]);
+
+    useEffect(()=>{
+       // Fetch all the caches for this user
+        fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, {
+            headers: {
+                "authorization": `Bearer ${getCookie("iglu-session")}`,
+            }
+        })
+        .then((res) => {
+            if(!res.ok){
+                throw new Error("Failed to fetch caches");
+            }
+            return res.json();
+        })
+        .then((data) => {
+            if(!data.caches || data.caches.length === 0){
+                throw new Error("No caches found");
+            }
+            console.log(data)
+            setCaches(data.caches);
+        })
+        .catch((error) => {
+            console.error("Error fetching caches:", error);
+            toast.error("Error fetching caches");
+        });
+    }, [])
     return(
         <div className="flex flex-col mt-3 gap-4 w-full">
             <div className="flex flex-col space-y-2">
                 <label>
                     Configuration Mode
                 </label>
-                <RadioGroup defaultValue="auto" className="flex flex-col" onValueChange={(value)=>{setMode(value)}}>
+                <RadioGroup defaultValue="auto" className="flex flex-col" onValueChange={(value)=>{
+                    setMode(value)
+                    setData({
+                        ...data,
+                        cachix: {
+                            ...data.cachix,
+                            mode: value
+                        }
+                    });
+                }}>
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="auto" id="auto" />
                         <label htmlFor="auto">Auto-create configuration - Let the Builder handle Cachix setup auto-magically</label>
@@ -28,13 +68,18 @@ export default function Cachix(){
                 <label>
                     Cache
                 </label>
-                <Select required>
+                <Select required onValueChange={(value)=>{
+                    setTargetCache(value);
+                }}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select configuration type" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="nix">cache1</SelectItem>
-                        <SelectItem value="flake">cache2</SelectItem>
+                        {
+                            caches.map((cache)=>{
+                                return <SelectItem value={cache.id.toString()} key={cache.id}>Cache: {cache.name}</SelectItem>
+                            })
+                        }
                     </SelectContent>
                 </Select>
             </div>
@@ -45,7 +90,15 @@ export default function Cachix(){
                             <label>
                                 Cachix Signing Key
                             </label>
-                            <Input type="text" />
+                            <Input type="text" onChange={(e)=>{
+                                setData({
+                                    ...data,
+                                    cachix: {
+                                        ...data.cachix,
+                                        cachixSigningKey: e.target.value
+                                    }
+                                });
+                            }} />
                             <div className="text-muted-foreground text-sm">
                                 This key is obtained by running cachix generate-keypair *cache-name* in your terminal.
                             </div>
@@ -54,7 +107,15 @@ export default function Cachix(){
                             <label>
                                 Cachix API Key
                             </label>
-                            <Input type="text" />
+                            <Input type="text" onChange={(e)=>{
+                                setData({
+                                    ...data,
+                                    cachix: {
+                                        ...data.cachix,
+                                        cachixPublicSigningKey: e.target.value
+                                    }
+                                });
+                            }}/>
                             <div className="text-muted-foreground text-sm">
                                 This key is obtained by going to your cache settings <a href="/app/settings" className="text-green-500">here</a>
                             </div>
@@ -71,7 +132,15 @@ export default function Cachix(){
                         Automatically push successful builds to the cache. If this is disabled, builds will only report their results without pushing to the cache.
                     </div>
                 </label>
-                <Switch defaultChecked={true}></Switch>
+                <Switch defaultChecked={true} onCheckedChange={()=>{
+                    setData({
+                        ...data,
+                        cachix: {
+                            ...data.cachix,
+                            push: !data.cachix.push
+                        }
+                    });
+                }}></Switch>
             </div>
             {
                 mode == "auto" ? (

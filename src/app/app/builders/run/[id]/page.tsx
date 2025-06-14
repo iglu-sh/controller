@@ -44,7 +44,10 @@ export default function Page(){
                 headers: {
                     Authorization: `Bearer ${apiKey}`,
                 }
+            }).finally(()=>{
+                toast.error("WS Closed")
             })
+
             if(!response.ok){
                 toast.error('Error fetching builder run data. Please try again later.')
                 return
@@ -58,12 +61,14 @@ export default function Page(){
             const decoder = new TextDecoder("utf-8");
             let done = false;
             while (!done) {
-                const {value, done: doneReading} = await reader.read();
+                console.log(done)
+                const {value, done: doneReading} = await reader.read().catch((error)=>{
+                    toast.error('Error streaming response from the API. Please try again later.');
+                });
                 done = doneReading;
                 if (value) {
                     const text = decoder.decode(value);
                     const lines = text.split('\n').filter(line => line.trim() !== '');
-                    console.log(lines)
                     setBuilderOutput(prev => [...prev, ...lines]);
                     setOutput(prev => [...prev, ...lines]);
                     // Search for the initialState message
@@ -104,6 +109,7 @@ export default function Page(){
                     }
                 }
             }
+            toast.error("Reading Finished")
         }
         wrap()
     }, [])
@@ -127,6 +133,29 @@ export default function Page(){
         setDuration(duration);
 
     }, [finalMessage]);
+
+    useEffect(() => {
+        const parsedOutput = output.map((line) => {
+            try {
+                return JSON.parse(line);
+            } catch (e) {
+                return line; // If parsing fails, return the original line
+            }
+        })
+        parsedOutput.forEach((line)=>{
+            if(line.msgType === "statusUpdate"){
+                // Update the startMessage state with the status update
+                setStartMessage((prev) => ({
+                    ...prev,
+                    data: {
+                        ...prev?.data,
+                        status: line.data,
+                    }
+                }));
+            }
+        })
+        // Loop over all messages and update the state if a message of type
+    }, [output]);
     return(
         <div className="flex flex-col gap-4">
             <div className="flex flex-row gap-4 items-center">
@@ -191,6 +220,11 @@ export default function Page(){
                     </div>
                     <div className="font-mono text-sm overflow-y-auto h-[800px] border-accent border-2 rounded-md p-4">
                         {
+                            output.filter((line)=>{return line.includes('"msgType":"output"')}).length === 0 ? (
+                                <div className="text-muted-foreground text-center text-sm">
+                                    No output received yet.
+                                </div>
+                                ) :
                             output.map((line, index)=>{
                                 let parsedLine = undefined
                                 try{

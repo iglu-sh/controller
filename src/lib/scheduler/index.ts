@@ -414,19 +414,17 @@ Bun.serve({
                 // If the builder is QUEUED then there's no stream that we can listen too at the moment so we listen to the builderStarted event instead
                 if(BUILDER_RUN.status === 'QUEUED'){
 
-                    let alreadyListening = false
                     // Listen for the builderStarted event to get the runningBuilder index
                     EVENT_EMITTER.on('builderStarted', (data) => {
                         Logger.debug('Received builderStarted event in WebSocket listener');
-                        if(data.runID != RUN_ID) return; // Ignore events for other builders
-                        if(alreadyListening) return; // If we are already listening, we don't need to switch to the stream listener again
-                        alreadyListening = true; // Set the flag to true to avoid switching again
+                        if(data.dbID != RUN_ID) return; // Ignore events for other builders
                         const RUNNING_BUILDER_INDEX = data.runningBuilderIndex;
                         const RUNNING_BUILDER = runningBuilders.find(builder => builder.dbID == RUN_ID);
                         ws.send(JSON.stringify({
                             msgType: 'statusUpdate',
                             data: RUNNING_BUILDER ? RUNNING_BUILDER.status: 'UNKNOWN',
                         }))
+                        console.log(RUNNING_BUILDER_INDEX)
                         msgHandler(RUNNING_BUILDER_INDEX);
                     });
                 }
@@ -444,7 +442,7 @@ Bun.serve({
             wrap()
         }, // a socket is opened
         close(ws, code, message) {
-
+            Logger.debug(`WebSocket connection closed with code ${code} and message: ${message}`);
         }, // a socket is closed
     },
     port: parseInt(PORT),

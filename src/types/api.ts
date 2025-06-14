@@ -149,6 +149,7 @@ export type builder = {
 export type builderDatabaseRepresenation = {
     name: string,
     description: string,
+    id: number,
     git: {
         repository: string,
         branch: string,
