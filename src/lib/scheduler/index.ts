@@ -84,6 +84,7 @@ async function builderStartedCallback(data:{id:string, name:string}) {
                 runID: data.id.split("_")[2],
                 reason: 'FAILED'
             })
+            end(undefined, 'FAILED', DOCKER, DB, data.id, data.id.split("_")[2], removeRunningBuilder)
         })
     if(!builderInfo){
         Logger.error(`Failed to start builder with ID ${data.id}`);
@@ -335,7 +336,9 @@ Bun.serve({
                 }
 
                 // Now we send the output line by line to the client
+                console.log('OUT LENGTH', output.length)
                 if(output && output.length > 0){
+                    Logger.debug(`Sending initial output for runID ${RUN_ID}, length: ${output.length}`);
                     const lines = output.split('\n');
                     for (const line of lines) {
                         if(line.trim().length > 0){
@@ -373,7 +376,7 @@ Bun.serve({
                         ws.close(1000, 'Running builder not found');
                         return
                     }
-                    Logger.error(`Listening to running builder with ID ${RUNNING_BUILDER.dockerID}`);
+                    Logger.debug(`Listening to running builder with ID ${RUNNING_BUILDER.dockerID}`);
                     let oldStatus = RUNNING_BUILDER.status;
                     // If the runningBuilder has a stream, we listen to it
                     EVENT_EMITTER.on(`data${RUNNING_BUILDER.dbID}`, () => {

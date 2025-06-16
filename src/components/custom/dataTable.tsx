@@ -26,6 +26,8 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
                                              columns,
                                              data,
+                                             baseLink = undefined,
+                                             keyToAppendToLink = undefined,
                                              rowCount = undefined,
                                              pageCount = undefined,
                                              updatePage = undefined,
@@ -62,18 +64,41 @@ export function DataTable<TData, TValue>({
                 </TableHeader>
                 <TableBody>
                     {table.getRowModel().rows?.length ? (
-                        table.getRowModel().rows.map((row) => (
-                            <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                            >
-                                {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id}>
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        ))
+                        table.getRowModel().rows.map((row) => {
+
+                            if(baseLink && keyToAppendToLink) {
+                                return(
+                                    <TableRow
+                                        key={row.id}
+                                        data-state={row.getIsSelected() && "selected"}
+                                        className="cursor-pointer hover:bg-muted"
+                                        onClick={() => {
+                                            window.location.href = `${baseLink}/${row.original[keyToAppendToLink].id}`
+                                        }}
+                                    >
+                                        {row.getVisibleCells().map((cell) => (
+                                            <TableCell key={cell.id}>
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                )
+                            }
+
+
+                            return(
+                                <TableRow
+                                    key={row.id}
+                                    data-state={row.getIsSelected() && "selected"}
+                                >
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell key={cell.id}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            )
+                        })
                     ) : (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="h-24 text-center">

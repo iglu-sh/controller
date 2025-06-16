@@ -22,7 +22,9 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                         ...data,
                         name: e.target.value
                     })
-                }}></Input>
+                }}
+                value={data.name || ""} required
+                ></Input>
             </div>
             <div className="flex flex-col space-y-2 w-full">
                 <label className="">Description</label>
@@ -31,7 +33,9 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                         ...data,
                         description: e.target.value
                     })
-                }}/>
+                }}
+                value={data.description || ""} required
+                />
             </div>
             <div className="flex flex-col space-y-2 w-full">
                 <label>Git Repository URL</label>
@@ -51,6 +55,7 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                             }
                         })
                     }}
+                       value={data.git.url || ""}
                 />
                 <div className="text-muted-foreground text-sm">
                     You may also not provide git settings and use a nix command in the format of: nix build github:repo_name/flake_name#my-derivation
@@ -73,7 +78,9 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                                 branch: val
                             }
                         })
-                    }} />
+                    }}
+                    value={data.git.branch || ""}
+                    />
                 </div>
             </div>
             <div className="grid grid-cols-2 space-y-2 w-full">
@@ -85,13 +92,15 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                             ...data,
                             git: {
                                 ...data.git,
-                                requiresAuth: !requiresAuth
+                                requiresAuth: !data.git.requiresAuth
                             }
                         })
-                    }}/>
+                    }}
+                    defaultChecked={data.git.requiresAuth}
+                    />
                 </div>
                 {
-                    requiresAuth ? (
+                    data.git.requiresAuth ? (
                         <div className="grid grid-cols-2 gap-4 w-full col-span-2">
                             <div className="flex flex-col space-y-2">
                                 <label>
@@ -107,6 +116,7 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                                             }
                                         })
                                     }}
+                                    value={data.git.username || ""}
                                 />
                             </div>
                             <div className="flex flex-col space-y-2">
@@ -123,6 +133,7 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                                             }
                                         })
                                     }}
+                                    value={data.git.token || ""}
                                 />
                             </div>
                             <div className="text-muted-foreground text-sm col-span-2">
@@ -155,13 +166,14 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                             }
                         })
                     }}
+                    value={data.build.command || ""}
                 />
             </div>
             <div className="flex flex-col space-y-2">
                 <label>
                     Build Trigger
                 </label>
-                <Select defaultValue="manual" onValueChange={(value)=> {
+                <Select defaultValue={data.build.buildTrigger} onValueChange={(value)=> {
                     setData({
                         ...data,
                         build: {
@@ -181,17 +193,11 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                     </SelectContent>
                 </Select>
                 {
-                     buildOption === "cron" ? (
+                     data.build.buildTrigger === "cron" ? (
                         <div className="flex flex-col space-y-2">
                             <Input type="text" placeholder="Cron" required
                                 onChange={(e)=>{
                                     let val = e.target.value;
-
-                                    // Check if the value is a cron expression
-                                    const cronRegex = /^(\*|([0-5]?\d)) (\*|([01]?\d|2[0-3])) (\*|[1-9]|1[0-2]) (\*|[1-9]|[12]\d|3[01]) (\*|[0-6])$/;
-                                    if(!cronRegex.test(val)) {
-                                        val = "";
-                                    }
                                     setData({
                                         ...data,
                                         build: {
@@ -201,6 +207,7 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                                         }
                                     })
                                 }}
+                                value={data.build.cron || ""}
                             />
                             <div className="text-muted-foreground text-sm col-span-2">
                                 Cron expression to run the build. For example, <strong>0 0 * * *</strong> will run the build every day at midnight.
@@ -209,14 +216,14 @@ export default function General({data, setData}:{data:BuilderCreationRequest, se
                     ) : null
                 }
                 {
-                    buildOption === "webhook" ? (
+                    data.build.buildTrigger === "webhook" ? (
                         <div className="text-muted-foreground text-sm col-span-2">
                             This will generate a webhook URL that you can use to trigger the build. You can use this URL in your Git repository settings to trigger the build on push events.
                         </div>
                     ) : null
                 }
                 {
-                    buildOption === "manual" ? (
+                    data.build.buildTrigger === "manual" ? (
                         <div className="text-muted-foreground text-sm col-span-2">
                             With this option you'll only be able to run the build manually from the UI.
                         </div>

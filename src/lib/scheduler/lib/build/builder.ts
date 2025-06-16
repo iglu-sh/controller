@@ -3,6 +3,7 @@ import {builderDatabase} from "@/types/db";
 import {runningBuilder} from "@/types/scheduler";
 import event from 'node:events'
 import Database from "@/lib/db";
+import * as fs from "node:fs";
 /*
 * This function handles communication with the builder.
 * It is provided with a builder configuration and the runningBuilder object to start interfacing with the container
@@ -46,12 +47,12 @@ export default function builder(config: builderDatabase, runningBuilder: running
                 cachix: {
                     push: config.cachix.push,
                     target: `${config.cache.uri}/${config.cache.name}`,
-                    apiKey: config.cachix.apikey,
-                    signingKey: config.cachix.signingkey,
+                    apiKey: config.cachix.apikey.key,
+                    signingKey: config.cachix.signingkey.privateKey,
                 }
             }
         }
-
+        fs.writeFileSync('/tmp/builder-config.json', JSON.stringify(BUILDER_SCHEMA, null, 2));
         let jobStatus = ''
 
         //On WebSocket open, send the builder configuration

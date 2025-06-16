@@ -9,10 +9,10 @@ import {getCookie} from "cookies-next";
 import {toast} from "sonner";
 import {cache} from "@/types/api";
 
-export default function Cachix({data, setData, setTargetCache}:{data:BuilderCreationRequest, setData:(data: BuilderCreationRequest) => void, setTargetCache:(cache: string) => void}) {
-    const [mode, setMode] = useState("auto");
+export default function Cachix({data, targetCache, setData, setTargetCache}:{data:BuilderCreationRequest, targetCache:string, setData:(data: BuilderCreationRequest) => void, setTargetCache:(cache: string) => void}) {
+    const [mode, setMode] = useState(data.cachix.mode);
     const [caches, setCaches] = useState<cache[]>([]);
-
+    const [selectedTarget, setSelectedTarget] = useState("");
     useEffect(()=>{
        // Fetch all the caches for this user
         fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, {
@@ -30,7 +30,7 @@ export default function Cachix({data, setData, setTargetCache}:{data:BuilderCrea
             if(!data.caches || data.caches.length === 0){
                 throw new Error("No caches found");
             }
-            console.log(data)
+
             setCaches(data.caches);
         })
         .catch((error) => {
@@ -38,22 +38,25 @@ export default function Cachix({data, setData, setTargetCache}:{data:BuilderCrea
             toast.error("Error fetching caches");
         });
     }, [])
+
     return(
         <div className="flex flex-col mt-3 gap-4 w-full">
             <div className="flex flex-col space-y-2">
                 <label>
                     Configuration Mode
                 </label>
-                <RadioGroup defaultValue="auto" className="flex flex-col" onValueChange={(value)=>{
-                    setMode(value)
+                <RadioGroup defaultValue={data.cachix.mode} className="flex flex-col" onValueChange={(value)=>{
+                    setMode(value as "auto" | "manual");
                     setData({
                         ...data,
                         cachix: {
                             ...data.cachix,
-                            mode: value
+                            mode: value as "auto" | "manual",
                         }
                     });
-                }}>
+                }}
+
+                >
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="auto" id="auto" />
                         <label htmlFor="auto">Auto-create configuration - Let the Builder handle Cachix setup auto-magically</label>
@@ -70,7 +73,8 @@ export default function Cachix({data, setData, setTargetCache}:{data:BuilderCrea
                 </label>
                 <Select required onValueChange={(value)=>{
                     setTargetCache(value);
-                }}>
+                    setSelectedTarget(value)
+                }} defaultValue={targetCache ? targetCache : ""}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select configuration type" />
                     </SelectTrigger>
@@ -98,7 +102,9 @@ export default function Cachix({data, setData, setTargetCache}:{data:BuilderCrea
                                         cachixSigningKey: e.target.value
                                     }
                                 });
-                            }} />
+                            }}
+                            value={data.cachix.cachixSigningKey ? data.cachix.cachixSigningKey : ""}
+                            />
                             <div className="text-muted-foreground text-sm">
                                 This key is obtained by running cachix generate-keypair *cache-name* in your terminal.
                             </div>
@@ -115,9 +121,11 @@ export default function Cachix({data, setData, setTargetCache}:{data:BuilderCrea
                                         cachixPublicSigningKey: e.target.value
                                     }
                                 });
-                            }}/>
+                            }}
+                            value={data.cachix.cachixPublicSigningKey ? data.cachix.cachixPublicSigningKey : ""}
+                            />
                             <div className="text-muted-foreground text-sm">
-                                This key is obtained by going to your cache settings <a href="/app/settings" className="text-green-500">here</a>
+                                This key is obtained by going to your cache settings <a href={`/app/settings?cache=${targetCache ? targetCache : caches[0].id}`} className="text-green-500">here</a>
                             </div>
                         </div>
                     </div>

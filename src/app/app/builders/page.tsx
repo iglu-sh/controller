@@ -99,6 +99,11 @@ function RunBuilder({ builder }: { builder: dbBuilder }) {
 
 const columns:ColumnDef<builder> = [
     {
+        accessorKey: "id",
+        id: "id",
+        header: "ID",
+    },
+    {
         accessorKey: "builder.name",
         header: "Name",
     },
@@ -217,7 +222,7 @@ export default function Builder(){
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                    <DataTable columns={columns} data={builders} />
+                    <DataTable columns={columns} data={builders} baseLink={`${process.env.NEXT_PUBLIC_URL}/app/builders`} keyToAppendToLink={"builder"}/>
                 </CardContent>
                 <Toaster />
             </Card>

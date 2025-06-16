@@ -89,13 +89,15 @@ export function UseExistingCache({substituters, setSubstituters, caches}:{substi
 }
 
 export default function Options({data, setData}:{data:BuilderCreationRequest, setData:(data: BuilderCreationRequest) => void}){
-    const [substituters, setSubstituters] = useState<substituter[]>([
-        {
-            "id": 1,
-            "url": "https://cache.nixos.org",
-            "publickey": "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        }
-    ]);
+    const [substituters, setSubstituters] = useState<substituter[]>(data.build.substituters.map((substituter:{url:string, signingKeys:Array<string>}, index)=>{
+        return(
+            {
+                id: index + 1,
+                url: substituter.url,
+                publickey: substituter.signingKeys.join(" ") || ""
+            } as substituter
+        )
+    }));
     // @ts-ignore
     const columns:ColumnDef<substituter> = [
         {
@@ -252,7 +254,9 @@ export default function Options({data, setData}:{data:BuilderCreationRequest, se
                                 allowUnfree: !data.build.allowUnfree
                             }
                         })
-                    }}/>
+                    }}
+                    defaultChecked={data.build.allowUnfree}
+                    />
                 </div>
                 <div className="flex flex-row justify-between">
                     <label>
@@ -266,7 +270,9 @@ export default function Options({data, setData}:{data:BuilderCreationRequest, se
                                 parallelBuilds: !data.build.parallelBuilds
                             }
                         })
-                    }} />
+                    }}
+                    defaultChecked={data.build.parallelBuilds}
+                    />
                 </div>
                 <div className="flex flex-row justify-between">
                     <label>
@@ -280,7 +286,9 @@ export default function Options({data, setData}:{data:BuilderCreationRequest, se
                                 sandboxed: !data.build.sandboxed
                             }
                         })
-                    }}/>
+                    }}
+                    defaultChecked={data.build.sandboxed}
+                    />
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-8">
@@ -288,29 +296,33 @@ export default function Options({data, setData}:{data:BuilderCreationRequest, se
                     <label>
                         Max Jobs
                     </label>
-                    <Input defaultValue="4" type="number" max={128} onChange={(e)=>{
+                    <Input max={128} type="number" onChange={(e)=>{
                         setData({
                             ...data,
                             build:{
                                 ...data.build,
-                                maxJobs: parseInt(e.target.value) || 4
+                                maxJobs: e.target.value as unknown as number
                             }
                         })
-                    }} />
+                    }}
+                    value={data.build.maxJobs}
+                    />
                 </div>
                 <div className="flex-col flex space-y-2">
                     <label>
                         Cores
                     </label>
-                    <Input defaultValue="2" type="number" max={128} onChange={(e)=>{
+                    <Input type="number" max={128} onChange={(e)=>{
                         setData({
                             ...data,
                             build:{
                                 ...data.build,
-                                cores: parseInt(e.target.value) || 2
+                                cores: e.target.value as unknown as number
                             }
                         })
-                    }}/>
+                    }}
+                    value={data.build.cores}
+                    />
                 </div>
             </div>
             <div className="flex flex-col space-y-2">

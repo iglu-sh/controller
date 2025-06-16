@@ -8,7 +8,6 @@ import assert from "node:assert";
 import generateCachixKey from "@/lib/api/generateCachixKey";
 import {builder, builderDatabaseRepresenation} from "@/types/api";
 import {getWebhookURLPart} from "@/lib/api/webhookURL";
-import Scheduler from "@/lib/scheduler/scheduler";
 import {dbBuilder} from "@/types/db";
 
 export async function POST(request: NextRequest){

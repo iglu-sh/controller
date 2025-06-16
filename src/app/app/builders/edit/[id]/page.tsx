@@ -277,10 +277,10 @@ export default function CreateBuilderPage() {
                                         }
                                     </div>
                                     <Button variant="ghost"
-                                        onClick={(e)=>{
-                                            navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_URL}${builder?.webhookURL}`);
-                                            toast.success("Webhook URL copied to clipboard!");
-                                        }}
+                                            onClick={(e)=>{
+                                                navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_URL}${builder?.webhookURL}`);
+                                                toast.success("Webhook URL copied to clipboard!");
+                                            }}
                                     >
                                         <Copy />
                                     </Button>

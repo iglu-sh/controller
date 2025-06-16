@@ -29,8 +29,15 @@ export type builderDatabase = {
     cachix: {
         push: boolean,
         target: string,
-        apikey: string,
-        signingkey: string,
+        apikey: {
+            key: string,
+            id: number
+        },
+        signingkey: {
+            id: number,
+            privateKey: string,
+            publicKey: string,
+        },
         builder_id: number,
         buildoutputdir: string,
         id: number
