@@ -1,14 +1,15 @@
-import type { NextConfig } from "next";
+/**
+ * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
+ * for Docker builds.
+ */
+import "@/env.ts";
+import Database from "@/lib/db";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
-    ignoreBuildErrors: true,
-  }
-};
-
-export default nextConfig;
+/** @type {import("next").NextConfig} */
+const config = {};
+const db = new Database()
+db.connect().then(async ()=>{
+    await db.setupDB()
+    await db.disconnect()
+})
+export default config;
