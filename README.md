@@ -1,29 +1,35 @@
-# Create T3 App
+# Iglu Controller
+The Iglu Controller is the component of the Iglu Ecosystem that manages everything in a neat graphical interface.
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+## Configuration
+The Iglu Controller is configured using a `.env` file.
+This file should be placed in the root directory of the project and should contain the following variables:
+```dotenv
+NEXT_PUBLIC_CACHE_URL=http://localhost:3000
+LOG_LEVEL=DEBUG
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=cache
+LOGGER_USE_ENV=true
+LOGGER_JSON=false
+LOGGER_PREFIX="[Controller]"
+LOGGER_PREFIX_COLOR="MAGENTA"
+AUTH_SECRET=your_auth_secret
+```
+We recommend setting all the LOGGER_ variables like we have set them here, but you can customize them as per your requirements.
 
-## What's next? How do I make an app with this?
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+## Running
+To run the Iglu Controller, you need to have Bun installed. Once you have installed Bun, you'll have to install all the packages using:
+```bash
+bun install
+```
+After installing the packages, you need to set up the environment variables. You can do this by creating a `.env` file in the root directory of the project. The `.env` file should contain the following variables:
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
-
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
-
-## Learn More
-
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
-
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
-
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+```
+Then, you can run the controller using:
+```bash
+bun run dev
+```
