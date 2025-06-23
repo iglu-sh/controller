@@ -46,6 +46,7 @@ export default class Database{
 
         // Sets up the required frontend tables
         await this.client.query(`
+            START TRANSACTION;
             CREATE TABLE IF NOT EXISTS cache.users (
                 id uuid NOT NULL UNIQUE PRIMARY KEY DEFAULT gen_random_uuid(),
                 username TEXT NOT NULL,
@@ -111,14 +112,25 @@ export default class Database{
                 gitCommit text not null,
                 duration interval not null, -- in seconds
                 log text
-            )
+            );
+            create table if not exists cache.builder_user_link
+                (
+                id serial constraint builder_user_link_pk primary key,
+                builder_id int constraint builder_fk references cache.builder ON DELETE CASCADE,
+                user_id uuid constraint user_fk references cache.users ON DELETE CASCADE
+            );
+            create table if not exists cache.cache_user_link
+                (
+                id serial constraint cache_user_link_pk primary key,
+                cache_id int constraint cache_fk references cache.caches ON DELETE CASCADE,
+                user_id uuid constraint user_fk references cache.users ON DELETE CASCADE
+            );
+                COMMIT TRANSACTION;
         `)
 
         // Modifies the existing cache tables to include a userID
         // User ID may be null if the cache is not owned by a user (yet)
         await this.client.query(`
-            ALTER TABLE cache.caches ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT cache_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
-            ALTER TABLE cache.builder ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT builder_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
             ALTER TABLE cache.keys ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT keys_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
         `)
         Logger.debug('Database tables set up successfully');
@@ -204,5 +216,27 @@ export default class Database{
             Logger.error(`Failed to disconnect from DB ${err}`);
         });
         Logger.info("Disconnected from DB");
+    }
+
+
+    public async getUserById(userId:string):Promise<User | null>{
+        Logger.debug(`Getting user ${userId}`);
+        return await this.client.query(`
+            SELECT * FROM cache.users WHERE id = $1;
+        `, [userId])
+            .then((res)=>{
+                if(res.rows.length === 0){
+                    return null;
+                }
+                return res.rows[0] as User;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get user ${userId} ${err}`);
+                return null;
+            })
+    }
+
+    public async getEveryting():Promise<void>{
+
     }
 }

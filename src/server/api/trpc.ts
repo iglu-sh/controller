@@ -11,6 +11,8 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { auth } from "@/server/auth";
+import Database from "@/lib/db";
+import Logger from "@iglu-sh/logger";
 
 /**
  * 1. CONTEXT
@@ -128,3 +130,42 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+export const adminProcedure = t.procedure
+    .use(timingMiddleware)
+    .use(({ ctx, next }) => {
+      if (!ctx.session?.user) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+      if(!ctx.session?.user.session_user.is_admin){
+        throw new TRPCError({ code: "FORBIDDEN", message: "You are not an admin" });
+      }
+
+      // Check if that user is also an admin in the database
+      const db = new Database()
+      try{
+        async function checkIfUserIsAdmin(userId: string): Promise<boolean> {
+          await db.connect()
+            const user = await db.getUserById(userId);
+            await db.disconnect()
+            if (!user) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+            }
+            return user.is_admin;
+        }
+        const isAdmin = checkIfUserIsAdmin(ctx.session.user.session_user.id);
+        if (!isAdmin) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "You are not an admin" });
+        }
+      }
+      catch(err){
+        Logger.error(`Error check if user is admin ${err}`)
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+      return next({
+        ctx: {
+          // infers the `session` as non-nullable
+          session: { ...ctx.session, user: ctx.session.user },
+        },
+      });
+    });

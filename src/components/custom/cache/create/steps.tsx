@@ -58,7 +58,7 @@ export default function Steps({step}:{step:number}){
                     }
                 </div>
                 <h2 className="">
-                    Performance
+                    Monitoring
                 </h2>
             </div>
             <div className="flex flex-col items-center text-center">
@@ -66,17 +66,6 @@ export default function Steps({step}:{step:number}){
                     {
                         step > 6 ?
                             <CircleCheck /> : "6"
-                    }
-                </div>
-                <h2 className="">
-                    Monitoring
-                </h2>
-            </div>
-            <div className="flex flex-col items-center text-center">
-                <div className={`rounded-full ${step >= 7 ? "bg-primary" : ""} w-10 h-10 flex items-center justify-center font-bold`}>
-                    {
-                        step > 7 ?
-                            <CircleCheck /> : "7"
                     }
                 </div>
                 <h2 className="">

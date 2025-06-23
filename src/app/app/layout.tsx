@@ -19,6 +19,10 @@ export default async function AppLayout({
     if(!session){
         redirect("/")
     }
+    // Check if the user is an admin and if the user should be shown the onboarding flow
+    if(session.user.session_user.show_oob){
+        redirect("/oob")
+    }
     // Prefetch all caches this user has access to
     void api.cache.byUser.prefetch()
 

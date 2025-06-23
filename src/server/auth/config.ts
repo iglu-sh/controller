@@ -23,9 +23,7 @@ declare module "next-auth" {
       // ...other properties
       // role: UserRole;
       email: string,
-      session_user: User & {
-        password?: string; // Optional, since we don't want to expose the password hash
-      };
+      session_user: Omit<User, "password">
     } & DefaultSession["user"];
   }
   interface JWT extends DefaultJWT {
