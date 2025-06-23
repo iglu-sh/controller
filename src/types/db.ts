@@ -149,8 +149,15 @@ export type aggregatedBuilder = {
 }
 export type xTheEverythingType = {
     cache: cache,
-    builders: aggregatedBuilder[],
-    signing_keys: public_signing_keys[],
-    api_keys: keys[],
-    derivation_count: number,
+    builders: aggregatedBuilder[] | null,
+    public_signing_keys: {
+        key: public_signing_keys,
+        link_record: signing_key_cache_api_link
+    }[] | null,
+    api_keys: keys[] | null,
+    derivations: {
+        count: number,
+        size: number | null
+    },
+
 }

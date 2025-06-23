@@ -80,7 +80,10 @@
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.606 0.25 292.717);
 }
-
+:root::selection{
+  background: var(--primary);
+    color: var(--primary-foreground);
+}
 .dark {
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);

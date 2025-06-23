@@ -6,12 +6,21 @@ import Link from "next/link";
 import {auth} from "@/server/auth";
 import {redirect} from "next/navigation";
 import {Avatar} from "@/components/ui/avatar";
+import {api} from "@/trpc/server";
+import type {xTheEverythingType} from "@/types/db";
+import ClaimableCache from "@/components/custom/oob/claimable/claimableCache";
+import Heading from "@/components/custom/oob/heading";
 export default async function OOB(){
     const session = await auth()
     if(!session || !session.user || !session.user.session_user.is_admin){
         // If the user is not authenticated, redirect to the login page
         return redirect('/');
     }
+    const everything = await api.admin.getCachesPropagated().catch((e)=>{
+        console.error("Error fetching caches:", e);
+        return [] as xTheEverythingType[];
+    })
+
     return(
         <div className="m-7 flex flex-col gap-4">
             <div className="flex flex-row justify-between">
@@ -28,66 +37,7 @@ export default async function OOB(){
                     <span className="ml-1">{session.user.session_user.username}</span>
                 </div>
             </div>
-            <div className="grid grid-cols-4 gap-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex flex-row justify-between items-center">
-                            <div>
-                                Total Caches
-                            </div>
-                            <Server />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <strong>1</strong>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex flex-row justify-between items-center">
-                            <div>
-                                Unclaimed Caches
-                            </div>
-                            <Unlock />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <strong>1</strong>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex flex-row justify-between items-center">
-                            <div>
-                                Stored Derivations
-                            </div>
-                            <Package />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <strong>27.000</strong>
-                        <div className="text-sm text-muted-foreground">
-                            Across all caches
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex flex-row justify-between items-center">
-                            <div>
-                                API Keys
-                            </div>
-                            <Key />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <strong>3</strong>
-                        <div className="text-sm text-muted-foreground">
-                            Available for use
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+            <Heading caches={everything} />
             <div className="flex flex-col gap-2">
                 <h2 className="text-2xl font-bold">Claim existing Caches</h2>
                 <div className="text-sm text-muted-foreground">
@@ -111,6 +61,13 @@ export default async function OOB(){
                     </div>
                 </CardContent>
             </Card>
+            {
+                everything.map((cache, index)=>{
+                    return(
+                        <ClaimableCache cache={cache} key={index} />
+                    )
+                })
+            }
             <div className="flex flex-row justify-end">
                 <Button>Confirm</Button>
             </div>

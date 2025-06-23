@@ -1,6 +1,6 @@
 import {Client} from "pg";
 import Logger from "@iglu-sh/logger";
-import type {User} from "@/types/db";
+import type {User, xTheEverythingType} from "@/types/db";
 import bcrypt from "bcryptjs";
 export default class Database{
     private client: Client
@@ -236,7 +236,56 @@ export default class Database{
             })
     }
 
-    public async getEveryting():Promise<void>{
-
+    public async getEverything():Promise<Array<xTheEverythingType>>{
+        return await this.client.query(`
+            SELECT row_to_json(ca.*) as cache,
+                   (
+                       SELECT json_agg(
+                                      json_build_object(
+                                              'builder', row_to_json(b.*),
+                                              'options', row_to_json(bo.*),
+                                              'cachix_config', row_to_json(cc.*),
+                                              'git_config', row_to_json(gc.*),
+                                              'runs', (
+                                                  SELECT json_agg(br.*) FROM cache.builder_runs as br WHERE builder_id = b.id
+                                              )
+                                      )
+                              )
+                       FROM cache.builder as b
+                                INNER JOIN cache.buildoptions as bo ON b.id = bo.builder_id
+                                INNER JOIN cache.cachixconfigs as cc ON b.id = cc.builder_id
+                                INNER JOIN cache.git_configs as gc ON b.id = gc.builder_id
+                       GROUP BY b.cache_id
+                   ) as builders,
+                   (
+                       SELECT json_agg(
+                                      json_build_object(
+                                              'key', row_to_json(psk.*),
+                                              'link_record', row_to_json(skcal.*)
+                                      )
+                              )
+                       FROM cache.public_signing_keys psk
+                                INNER JOIN cache.signing_key_cache_api_link skcal ON skcal.key_id = psk.id
+                       WHERE skcal.cache_id = ca.id
+                       GROUP BY skcal.cache_id
+                   ) as public_signing_keys,
+                   (
+                       SELECT json_agg(row_to_json(ck.*)) FROM cache.keys k
+                                                                   INNER JOIN cache.cache_key ck ON k.id = ck.key_id
+                       WHERE ck.cache_id = ca.id
+                       GROUP BY ck.cache_id
+                   ) as api_keys,
+                   (
+                       SELECT json_build_object('count', count(ca.*), 'size',sum(ha.cfilesize)) FROM cache.hashes ha WHERE ha.cache = ca.id
+                   ) as derivations
+                   
+            FROM cache.caches as ca
+            GROUP BY ca.id
+        `).then((res)=>{
+            return res.rows as xTheEverythingType[];
+        }).catch((err)=>{
+            Logger.error(`Failed to get everything for admin from DB ${err}`);
+            throw err;
+        })
     }
 }
