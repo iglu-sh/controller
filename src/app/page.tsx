@@ -1,17 +1,14 @@
 import Link from "next/link";
 
-import { LatestPost } from "@/app/_components/post";
 import { auth } from "@/server/auth";
-import { api, HydrateClient } from "@/trpc/server";
+import { HydrateClient } from "@/trpc/server";
 import {Button} from "@/components/ui/button";
 import { redirect } from 'next/navigation'
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
   const session = await auth();
 
   if (session?.user) {
     redirect("/app")
-    void api.post.getLatest.prefetch();
   }
 
   return (

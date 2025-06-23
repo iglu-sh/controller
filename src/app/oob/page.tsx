@@ -1,5 +1,5 @@
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Key, Package, SearchIcon, Server, Unlock} from "lucide-react";
+import {Card, CardContent} from "@/components/ui/card";
+import {SearchIcon} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import Link from "next/link";
@@ -27,7 +27,7 @@ export default async function OOB(){
                 <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-bold">Welcome to Iglu!</h1>
                     <div className="text-sm text-muted-foreground">
-                        Let's get you setup with your caches. This will only take a few minutes.
+                        <p>Let&apos;s get you setup with your caches. This will only take a few minutes.</p>
                     </div>
                 </div>
                 <div className="flex flex-row gap-2 justify-center items-center">

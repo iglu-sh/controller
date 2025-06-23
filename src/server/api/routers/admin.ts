@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 import {
     adminProcedure,
     createTRPCRouter,
@@ -11,7 +9,7 @@ import Logger from "@iglu-sh/logger";
 export const admin = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
     getCachesPropagated: adminProcedure
-        .query(async ({ctx}):Promise<xTheEverythingType[]>=>{
+        .query(async ():Promise<xTheEverythingType[]>=>{
             const db = new Database()
             let data:xTheEverythingType[] = []
             try{
@@ -19,6 +17,7 @@ export const admin = createTRPCRouter({
                 data = await db.getEverything();
             }
             catch(e){
+                //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 Logger.error(`Failed to connect to DB ${e}`);
             }
             return data;

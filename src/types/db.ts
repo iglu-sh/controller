@@ -85,7 +85,7 @@ export type hashes = {
     csig: string,
     cstorehash: string,
     cstoresuffix: string,
-    parts: unknown,
+    parts: object[],
     compression: string
 }
 export type keys = {

@@ -1,14 +1,14 @@
 'use client'
-import {ChevronDown, Database, Plus} from "lucide-react";
+import {ChevronDown, Plus} from "lucide-react";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {usePathname, useSearchParams} from "next/navigation";
 
-export default function CacheDropdown({caches}: {caches: any[]}){
+export default function CacheDropdown({caches}: {caches: {id:string, name:string, description:string}[]}){
     // Use tRPC to fetch the caches for this user
     const params = useSearchParams()
-    const cacheID = params.get("cacheID");
+    const cacheID = params.get("cacheID")!;
     const pathname = usePathname()
     if(!caches){
         return <div>
@@ -16,6 +16,9 @@ export default function CacheDropdown({caches}: {caches: any[]}){
         </div>
     }
     if(!caches.find((cache) => cache.id === cacheID)){
+        if(!caches || caches.length === 0 || !caches[0]){
+            return <div>No Caches found!</div>
+        }
         // Redirect to the first cache if the cacheID is not valid
         window.location.href = `${pathname}?cacheID=${caches[0].id}`;
         return <div>

@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
     createTRPCRouter,
     protectedProcedure,
-    publicProcedure,
 } from "@/server/api/trpc";
 
 let post = {
@@ -19,7 +18,7 @@ export const cache = createTRPCRouter({
             if(!ctx.session.user){
                 return []
             }
-            console.log(ctx.session.user.session_user.id)
+
             return [
                 { id: "1", name: "Cache 1", description: "This is a test cache" },
                 { id: "2", name: "Cache 2", description: "This is another test cache" },

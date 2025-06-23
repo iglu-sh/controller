@@ -5,7 +5,7 @@ export function bcryptHash(password: string): Promise<string> {
     return new Promise((resolve, reject) => {
         bcrypt.hash(password, 10, (err, hash) => {
             if (err || !hash) {
-                reject(err);
+                reject(err ?? new Error("Hashing failed"));
             } else {
                 resolve(hash);
             }

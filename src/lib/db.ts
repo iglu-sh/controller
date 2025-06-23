@@ -10,7 +10,7 @@ export default class Database{
             host: process.env.DB_HOST,
             database: process.env.DB_NAME,
             password: process.env.DB_PASSWORD,
-            port: parseInt(process.env.DB_PORT || "5432", 10),
+            port: parseInt(process.env.DB_PORT ?? "5432", 10),
         })
     }
     public async connect():Promise<void>{
@@ -22,7 +22,7 @@ export default class Database{
         return new Promise((resolve, reject) => {
             bcrypt.hash(password, 10, (err, hash) => {
                 if (err || !hash) {
-                    reject(err);
+                    reject(err ?? new Error("Hashing failed"));
                 } else {
                     resolve(hash);
                 }
@@ -33,7 +33,7 @@ export default class Database{
         return new Promise((resolve, reject) => {
             bcrypt.compare(password, hash, (err, res) => {
                 if (err || res === undefined) {
-                    reject(err);
+                    reject(err ?? new Error("Password verification failed"));
                 } else {
                     resolve(res);
                 }
@@ -137,7 +137,8 @@ export default class Database{
 
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
         const res = await this.client.query('SELECT COUNT(*) FROM cache.users');
-        if(res.rows[0].count > 0){
+        //eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if(res.rows?.[0]?.count > 0){
             return
         }
         Logger.debug('No users found, creating default admin user');
@@ -152,12 +153,9 @@ export default class Database{
             true // show_setup
         )
     }
-    public async getCacheByUserID(userID:string){
 
-    }
-
-    public async createUser(username:string, email:string, password:string, is_admin:boolean, is_verified:boolean, must_change_password:boolean, show_setup:boolean = false):Promise<User>{
-        let hashedPW = await this.hashPW(password)
+    public async createUser(username:string, email:string, password:string, is_admin:boolean, is_verified:boolean, must_change_password:boolean, show_setup = false):Promise<User>{
+        const hashedPW = await this.hashPW(password)
         return await this.client.query(`
             INSERT INTO cache.users (username, email, password, created_at, updated_at, last_login, is_admin, is_verified, must_change_password, show_oob)
                 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)    
@@ -183,8 +181,7 @@ export default class Database{
 
     public async authenticateUser(username:string, password:string):Promise<User | null>{
         Logger.info(`Authenticating user ${username}`);
-        let hashedPW = await this.hashPW(password)
-        let user = await this.client.query(`
+        const user = await this.client.query(`
             SELECT * FROM cache.users WHERE username = $1 
         `, [username]).then((res)=>{
             return res.rows[0] as User;
@@ -197,7 +194,7 @@ export default class Database{
             return null;
         }
         Logger.info(`User ${username} found, verifying password`);
-        let isValid = await this.verifyPassword(password, user.password);
+        const isValid = await this.verifyPassword(password, user.password);
         if(!isValid){
             Logger.error(`Invalid password for user ${username}`);
             return null;

@@ -1,11 +1,8 @@
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
 import CredentialsProvider from "next-auth/providers/credentials"
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
-import {Client} from 'pg'
 import type {User} from "@/types/db";
-import {bcryptHash} from "@/lib/bcryptFuncs";
 import type {DefaultJWT, JWT} from "@auth/core/jwt";
 export interface CustomJWT extends JWT{
     user_db?: User;
@@ -53,9 +50,9 @@ export const authConfig = {
         username: { label: "Username", type: "text", placeholder: "jsmith" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, req) {
+      async authorize(credentials) {
         // Add logic here to look up the user from the credentials supplied
-        if(!credentials || !credentials.username || !credentials.password) {
+        if(!credentials?.username || !credentials?.password) {
           return null
         }
         if(typeof credentials.password !== "string" || typeof credentials.username !== "string") {
@@ -68,9 +65,11 @@ export const authConfig = {
           user = await db.authenticateUser(credentials.username, credentials.password)
           await db.disconnect()
         }
-        catch(e:any){
-          Logger.error(`Error authenticating user ${e.message}`)
+        catch(e){
+          //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          Logger.error(`Error authenticating user ${e}`)
         }
+
         // If a user is returned, it means the credentials are valid and the user is authenticated.
         if (user) {
           // Any object returned will be saved in `user` property of the JWT
@@ -95,7 +94,7 @@ export const authConfig = {
   callbacks: {
     session: ({session, token}) => {
 
-      if(!token || !token.user_db){
+      if(!token?.user_db){
         Logger.error("Session callback called without valid token or user_db")
         return session
       }
@@ -113,7 +112,7 @@ export const authConfig = {
     },
     jwt: ({token, user}):CustomJWT =>{
       if(user){
-        token["user_db"] = user
+        token.user_db = user
       }
       return token
     }

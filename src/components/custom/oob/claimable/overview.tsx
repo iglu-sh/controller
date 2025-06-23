@@ -1,7 +1,7 @@
 import type {xTheEverythingType} from "@/types/db";
 
 export default function Overview({cache}:{cache:xTheEverythingType}){
-    const cacheSizeInBytes = cache.derivations.size ? cache.derivations.size : 0;
+    const cacheSizeInBytes = cache.derivations.size ?? 0;
     // Convert bytes to gigabytes and round to two decimal places
     const cacheSizeInGB = (cacheSizeInBytes / (1024 ** 3)).toFixed(2);
     return(

@@ -133,7 +133,7 @@ export const protectedProcedure = t.procedure
 
 export const adminProcedure = t.procedure
     .use(timingMiddleware)
-    .use(({ ctx, next }) => {
+    .use(async ({ ctx, next }) => {
       if (!ctx.session?.user) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
@@ -153,12 +153,13 @@ export const adminProcedure = t.procedure
             }
             return user.is_admin;
         }
-        const isAdmin = checkIfUserIsAdmin(ctx.session.user.session_user.id);
+        const isAdmin = await checkIfUserIsAdmin(ctx.session.user.session_user.id);
         if (!isAdmin) {
           throw new TRPCError({ code: "FORBIDDEN", message: "You are not an admin" });
         }
       }
       catch(err){
+        //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         Logger.error(`Error check if user is admin ${err}`)
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }

@@ -3,7 +3,7 @@ import type {xTheEverythingType} from "@/types/db";
 import {Key, Package, Server, Unlock} from "lucide-react";
 
 export default function Heading({caches}:{caches:xTheEverythingType[]}){
-    let totalCaches = caches.length;
+    const totalCaches = caches.length;
     let signingKeys = 0;
     let storedDerivations = 0;
     let apiKeys = 0;

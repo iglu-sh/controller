@@ -7,10 +7,8 @@ import {
     SidebarHeader,
 } from "@/components/ui/sidebar"
 import Image from "next/image";
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
-import {BarChart, BarChart3, BarChartIcon, Database, HardDrive, Home, Package, Pen, Pencil} from "lucide-react";
+import { BarChart3, HardDrive, Home, Package, Pencil} from "lucide-react";
 import CacheDropdown from "@/components/custom/Sidebar/CacheDropdown";
-import type {Session} from "next-auth";
 import {Avatar, AvatarFallback} from "@/components/ui/avatar";
 import Link from "next/link";
 import {Button} from "@/components/ui/button";
@@ -19,7 +17,6 @@ import {useSession} from "next-auth/react";
 import {useEffect} from "react";
 import {useSearchParams} from "next/navigation";
 import {api} from "@/trpc/react";
-import {toast} from "sonner";
 export default function AppSidebar(){
     // We can be sure that the Session is available here because we check for this in the parent component before rendering this component.
     const session = useSession()
@@ -31,8 +28,10 @@ export default function AppSidebar(){
     // This will be used to populate the CacheDropdown component
     useEffect(() => {
         // Check if the cache ID is empty and, if so, set the first cache as the default cache
-        if((!params || !params.has("cacheID")) && cache.data && cache.data[0]){
-            window.location.href = `${window.location}?cacheID=${cache.data[0].id}`;
+        if(!params?.has("cacheID")) {
+            if(cache?.data?.[0]?.id){
+                window.location.href = `${window.location.toString()}?cacheID=${cache.data[0].id}`;
+            }
         }
     }, [params]);
     return(
@@ -99,7 +98,7 @@ export default function AppSidebar(){
                 </SidebarGroup>
             </SidebarContent>
             {
-                session && session.data ? (
+                session?.data ? (
                     <SidebarFooter className="w-full p-0">
                         <Link href={`/app/user?cacheID=${cacheID}`} className="w-full flex flex-col gap-2 h-full">
                             <Button variant="ghost" className="

@@ -2,10 +2,6 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 import Logger from '@iglu-sh/logger'
 
-// @ts-ignore
-Logger.setLogLevel(process.env.LOG_LEVEL && ["DEBUG", "INFO", "WARNING", "ERROR"].includes(process.env.LOG_LEVEL) ? process.env.LOG_LEVEL : "INFO");
-Logger.setJsonLogging(false)
-Logger.setPrefix('Controller', 'MAGENTA');
 Logger.debug('Initialized Logger')
 export const env = createEnv({
   /**
@@ -33,6 +29,7 @@ export const env = createEnv({
       .enum(["RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])
       .optional()
       .default("MAGENTA"),
+    AUTH_TRUST_HOST: z.enum(["true", "false"]).optional().default("false"),
   },
 
   /**
@@ -64,6 +61,7 @@ export const env = createEnv({
     LOGGER_PREFIX_COLOR: process.env.LOGGER_PREFIX_COLOR,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
     NEXT_PUBLIC_CACHE_URL: process.env.NEXT_PUBLIC_CACHE_URL,
+    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

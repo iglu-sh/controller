@@ -3,12 +3,9 @@ import {SidebarProvider} from "@/components/ui/sidebar";
 import AppSidebar from "@/components/custom/Sidebar/Sidebar";
 import { auth } from "@/server/auth";
 import {redirect} from "next/navigation";
-import {getCookie} from "cookies-next";
 import {api} from "@/trpc/server";
 import {HydrateClient} from "@/trpc/server";
 import {Toaster} from "@/components/ui/sonner";
-import {toast} from "sonner"
-import {router} from "next/client";
 import {SessionProvider} from "next-auth/react";
 export default async function AppLayout({
                                        children,
