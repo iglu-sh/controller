@@ -18,7 +18,7 @@ export const admin = createTRPCRouter({
                 data = await db.getEverything();
             }
             catch(e){
-                //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                
                 Logger.error(`Failed to connect to DB ${e}`);
             }
             return data;
@@ -29,7 +29,7 @@ export const admin = createTRPCRouter({
             email: z.string().email(),
             isAdmin: z.boolean().default(false)
         }))
-        .mutation(async ({ input, ctx}):Promise<{
+        .mutation(async ({ input}):Promise<{
             user: User,
             success: boolean
         }> => {
@@ -70,13 +70,66 @@ export const admin = createTRPCRouter({
                 success = true;
             }
             catch(e){
-                //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                
                 Logger.error(`Failed to add user ${e}`);
             }
             await db.disconnect()
             return {
                 user: user,
                 success: success
+            }
+        }),
+    changeAccess: adminProcedure
+        .input(z.object({
+            userId: z.string().uuid(),
+            type: z.enum(["add", "remove"]),
+            resourceType: z.enum(["cache"]),
+            resourceId: z.number()
+        }))
+        .mutation(async ({ input}):Promise<{
+            success: boolean,
+            message?: string
+        }> => {
+            const db = new Database()
+            let success = false;
+            try{
+                await db.connect()
+                if(input.resourceType === "cache"){
+                    if(input.type === "add"){
+                        success = await db.addUserToCache(input.resourceId, input.userId)
+                    }
+                }
+                await db.disconnect()
+            }
+            catch(e){
+                
+                Logger.error(`Failed to connect to DB ${e}`);
+                return {
+                    success: false,
+                    message: "Database connection failed."
+                }
+            }
+
+            return {
+                success: success,
+            }
+        }),
+    removeOOBFlag: adminProcedure
+        .input(z.string().uuid())
+        .mutation(async ({ input }) => {
+            const db = new Database()
+            let success = false;
+            Logger.debug(`Removing OOB flag for user ${input}`);
+            try{
+                await db.connect()
+                success = await db.removeOOBFlag(input);
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+            }
+            return {
+                success: success,
             }
         })
 });

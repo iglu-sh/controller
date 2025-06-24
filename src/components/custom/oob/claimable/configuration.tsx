@@ -13,7 +13,7 @@ export default function Configuration({cache}:{cache:xTheEverythingType}){
             </div>
             <div className="flex flex-row justify-between gap-2 items-center">
                 <span>Public Cache</span>
-                <span>{cache.cache.ispublic}</span>
+                <span>{cache.cache.ispublic.toString()}</span>
             </div>
             <div className="flex flex-row justify-between gap-2 items-center">
                 <span>Github Username</span>

@@ -103,7 +103,7 @@ export default function CreateUser() {
                         <div className="flex flex-row items-center justify-center font-mono p-5 border-accent border-2 rounded-lg bg-secondary">
                             {password}
                             <Button variant="ghost" onClick={()=>{
-                                navigator.clipboard.writeText(password || '').catch((err) => {
+                                navigator.clipboard.writeText(password || '').catch(() => {
                                     toast.error("Failed to copy password to clipboard");
                                 });
                                 toast.success("Password copied to clipboard");

@@ -159,7 +159,6 @@ export const adminProcedure = t.procedure
         }
       }
       catch(err){
-        //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         Logger.error(`Error check if user is admin ${err}`)
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }

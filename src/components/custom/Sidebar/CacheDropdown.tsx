@@ -4,12 +4,22 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {usePathname, useSearchParams} from "next/navigation";
+import {useEffect} from "react";
 
 export default function CacheDropdown({caches}: {caches: {id:string, name:string, description:string}[]}){
     // Use tRPC to fetch the caches for this user
     const params = useSearchParams()
     const cacheID = params.get("cacheID")!;
     const pathname = usePathname()
+    useEffect(() => {
+        if(!caches.find((cache) => cache.id === cacheID && window)){
+            // Redirect to the first cache if the cacheID is not valid
+            if(!caches[0]){
+                return
+            }
+            window.location.href = `${pathname}?cacheID=${caches[0].id}`;
+        }
+    }, []);
     if(!caches){
         return <div>
             Loading Caches...
@@ -19,8 +29,6 @@ export default function CacheDropdown({caches}: {caches: {id:string, name:string
         if(!caches || caches.length === 0 || !caches[0]){
             return <div>No Caches found!</div>
         }
-        // Redirect to the first cache if the cacheID is not valid
-        window.location.href = `${pathname}?cacheID=${caches[0].id}`;
         return <div>
             Loading Caches...
         </div>
@@ -30,33 +38,17 @@ export default function CacheDropdown({caches}: {caches: {id:string, name:string
            <DropdownMenu>
                <DropdownMenuTrigger className="w-full" asChild>
                    <Button variant="ghost" className="flex flex-row items-start p-2 h-full w-full">
-                       {
-                           cacheID ? (
-                               <div className="flex flex-row items-center p-2 w-full">
-                                   <div className="flex flex-col gap-1 w-full items-start">
-                                       <strong>
-                                           {caches.find((cache)=> cache.id === cacheID)?.name}
-                                       </strong>
-                                       <div className="text-muted-foreground text-sm">
-                                           {caches.find((cache)=> cache.id === cacheID)?.description}
-                                       </div>
-                                   </div>
-                                   <ChevronDown />
-                               </div>
-                           ) : (
-                                <div className="flex flex-row items-center p-2 w-full">
-                                    <div className="flex flex-col gap-1 w-full items-start">
-                                        <strong>
-                                            Cache
-                                        </strong>
-                                        <div className="text-muted-foreground text-sm">
-                                            Select a cache
-                                        </div>
-                                    </div>
-                                    <ChevronDown />
-                                </div>
-                           )
-                       }
+                   <div className="flex flex-row items-center p-2 w-full">
+                       <div className="flex flex-col gap-1 w-full items-start">
+                           <strong>
+                               {caches.find((cache)=> cache.id === cacheID)?.name ?? "Select Cache"}
+                           </strong>
+                           <div className="text-muted-foreground text-sm">
+                               {caches.find((cache)=> cache.id === cacheID)?.description ?? "Select a cache to manage"}
+                           </div>
+                       </div>
+                       <ChevronDown />
+                   </div>
                    </Button>
                </DropdownMenuTrigger>
                <DropdownMenuContent align="start" className="w-[205px]">

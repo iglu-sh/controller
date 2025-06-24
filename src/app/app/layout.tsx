@@ -12,12 +12,12 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
     // Ensure the user is authenticated before rendering the layout
     const session = await auth()
-
     if(!session){
         redirect("/")
     }
+    const mustShowOOB = await api.user.mustShowOOB(session?.user.session_user.id)
     // Check if the user is an admin and if the user should be shown the onboarding flow
-    if(session.user.session_user.show_oob){
+    if(session.user.session_user.show_oob && mustShowOOB){
         redirect("/oob")
     }
     // Prefetch all caches this user has access to

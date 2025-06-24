@@ -66,7 +66,6 @@ export const authConfig = {
           await db.disconnect()
         }
         catch(e){
-          //eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           Logger.error(`Error authenticating user ${e}`)
         }
 

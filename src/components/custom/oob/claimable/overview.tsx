@@ -24,10 +24,10 @@ export default function Overview({cache}:{cache:xTheEverythingType}){
             </div>
             <div className="flex flex-col gap-2 items-center">
                 <strong className="text-2xl">
-                    {cache.derivations.count}
+                    {cache.api_keys ? cache.api_keys.length : 0}
                 </strong>
                 <span className="text-sm text-muted-foreground">
-                    Derivations Stored
+                    API Key(s) Configured
                 </span>
             </div>
             <div className="flex flex-col gap-2 items-center">

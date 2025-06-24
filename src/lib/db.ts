@@ -287,7 +287,7 @@ export default class Database{
                        GROUP BY skcal.cache_id
                    ) as public_signing_keys,
                    (
-                       SELECT json_agg(row_to_json(ck.*)) FROM cache.keys k
+                       SELECT json_agg(row_to_json(k.*)) FROM cache.keys k
                                                                    INNER JOIN cache.cache_key ck ON k.id = ck.key_id
                        WHERE ck.cache_id = ca.id
                        GROUP BY ck.cache_id
@@ -304,5 +304,35 @@ export default class Database{
             Logger.error(`Failed to get everything for admin from DB ${err}`);
             throw err;
         })
+    }
+
+    public async addUserToCache(cacheId:number, userId:string):Promise<boolean>{
+        return await this.client.query(`
+            INSERT INTO cache.cache_user_link (cache_id, user_id)
+            VALUES ($1, $2)
+        `, [cacheId, userId])
+            .then(()=>{
+                return true
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to add user ${userId} to cache ${cacheId} ${err}`);
+                return false
+            });
+    }
+
+    public async removeOOBFlag(userId:string):Promise<boolean>{
+        return await this.client.query(`
+            UPDATE cache.users SET show_oob = false WHERE id = $1
+        `, [userId])
+            .then((res)=>{
+                if(res.rowCount === 0){
+                    return false;
+                }
+                return true;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to remove OOB flag for user ${userId} ${err}`);
+                return false;
+            });
     }
 }
