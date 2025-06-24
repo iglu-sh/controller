@@ -10,6 +10,8 @@ import {api} from "@/trpc/server";
 import type {xTheEverythingType} from "@/types/db";
 import ClaimableCache from "@/components/custom/oob/claimable/claimableCache";
 import Heading from "@/components/custom/oob/heading";
+import CreateUser from "@/components/custom/user/create";
+import {SessionProvider} from "next-auth/react";
 export default async function OOB(){
     const session = await auth()
     if(!session || !session.user || !session.user.session_user.is_admin){
@@ -54,7 +56,9 @@ export default async function OOB(){
                         </Button>
                     </div>
                     <div className="flex flex-row gap-1">
-                        <Button>Create User</Button>
+                        <SessionProvider>
+                            <CreateUser />
+                        </SessionProvider>
                         <Link href="https://docs.iglu.sh/docs/Components/Iglu%20Controller">
                             <Button variant="secondary">Documentation</Button>
                         </Link>

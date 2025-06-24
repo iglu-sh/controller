@@ -8,7 +8,7 @@ import Database from "@/lib/db";
 /** @type {import("next").NextConfig} */
 const config = {};
 const db = new Database()
-db.connect().then(async ()=>{
+void db.connect().then(async ()=>{
     await db.setupDB()
     await db.disconnect()
 })

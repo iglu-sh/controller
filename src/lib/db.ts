@@ -4,6 +4,8 @@ import type {User, xTheEverythingType} from "@/types/db";
 import bcrypt from "bcryptjs";
 export default class Database{
     private client: Client
+    private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
+
     constructor() {
         this.client = new Client({
             user: process.env.DB_USER,
@@ -12,6 +14,9 @@ export default class Database{
             password: process.env.DB_PASSWORD,
             port: parseInt(process.env.DB_PORT ?? "5432", 10),
         })
+    }
+    private async wrap(cl: Database){
+        await cl.disconnect()
     }
     public async connect():Promise<void>{
         Logger.info("Connecting to DB...");
@@ -153,7 +158,21 @@ export default class Database{
             true // show_setup
         )
     }
-
+    public async getUserByNameOrEmail(username:string, email:string):Promise<User | null>{
+        return await this.client.query(`
+            SELECT * FROM cache.users WHERE username = $1 OR email = $2
+        `, [username, email])
+            .then((res)=>{
+                if(res.rows.length === 0){
+                    return null;
+                }
+                return res.rows[0] as User;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get user by name ${username} ${err}`);
+                return null;
+            })
+    }
     public async createUser(username:string, email:string, password:string, is_admin:boolean, is_verified:boolean, must_change_password:boolean, show_setup = false):Promise<User>{
         const hashedPW = await this.hashPW(password)
         return await this.client.query(`
@@ -212,6 +231,7 @@ export default class Database{
         await this.client.end().catch(err => {
             Logger.error(`Failed to disconnect from DB ${err}`);
         });
+        this.timeout.close()
         Logger.info("Disconnected from DB");
     }
 
