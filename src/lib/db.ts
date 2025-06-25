@@ -1,6 +1,6 @@
 import {Client} from "pg";
 import Logger from "@iglu-sh/logger";
-import type {User, xTheEverythingType} from "@/types/db";
+import type {cache, User, xTheEverythingType} from "@/types/db";
 import bcrypt from "bcryptjs";
 export default class Database{
     private client: Client
@@ -332,6 +332,31 @@ export default class Database{
             })
             .catch((err)=>{
                 Logger.error(`Failed to remove OOB flag for user ${userId} ${err}`);
+                return false;
+            });
+    }
+
+    public async getCachesByUserId(userId:string):Promise<Array<cache>>{
+        return await this.client.query(`
+            SELECT DISTINCT ca.* FROM cache.caches as ca
+                INNER JOIN cache.cache_user_link as cul ON ca.id = cul.cache_id
+        `).then((res)=>{
+            return res.rows as cache[]
+        }).catch((err)=>{
+            Logger.error(`Failed to get caches for user ${userId} ${err}`);
+            return [];
+        })
+    }
+
+    public async addUserToApiKey(apiKeyId:number, userId:string):Promise<boolean>{
+        return await this.client.query(`
+            UPDATE cache.keys SET user_id = $1 WHERE id = $2
+        `, [userId, apiKeyId])
+            .then(()=>{
+                return true;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to add user ${userId} to API key ${apiKeyId} ${err}`);
                 return false;
             });
     }
