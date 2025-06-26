@@ -4,38 +4,28 @@ import {
     createTRPCRouter,
     protectedProcedure,
 } from "@/server/api/trpc";
-
-let post = {
-    id: 1,
-    name: "Hello World",
-};
+import type * as dbTypes from "@/types/db";
+import Database from "@/lib/db";
+import Logger from "@iglu-sh/logger";
 
 export const cache = createTRPCRouter({
     byUser: protectedProcedure
-        .query(({ctx})=>{
+        .query(async ({ctx}):Promise<dbTypes.cache[]>=>{
             // Here you would fetch the caches for the user from the database
             // For now, we will return a dummy cache
             if(!ctx.session.user){
                 return []
             }
-
-            return [
-                { id: "1", name: "Cache 1", description: "This is a test cache" },
-                { id: "2", name: "Cache 2", description: "This is another test cache" },
-            ];
+            let data = [] as dbTypes.cache[];
+            const db = new Database()
+            try{
+                await db.connect()
+                data = await db.getCachesByUserId(ctx.session.user.id)
+            }
+            catch(err){
+                Logger.error(`Failed to connect to DB ${err}`);
+            }
+            await db.disconnect()
+            return data;
         }),
-    create: protectedProcedure
-        .input(z.object({ name: z.string().min(1) }))
-        .mutation(async ({ input }) => {
-            post = { id: post.id + 1, name: input.name };
-            return post;
-        }),
-
-    getLatest: protectedProcedure.query(() => {
-        return post;
-    }),
-
-    getSecretMessage: protectedProcedure.query(() => {
-        return "you can now see this secret message!";
-    }),
 });

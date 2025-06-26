@@ -15,6 +15,8 @@ import Infrastructure from "@/components/custom/cache/create/infrastructure";
 import NetworkSecurity from "@/components/custom/cache/create/NetworkSecurity";
 import StorageBackup from "@/components/custom/cache/create/storageBackup";
 import Monitoring from "@/components/custom/cache/create/monitoring";
+import ReviewDeploy from "@/components/custom/cache/create/reviewDeploy";
+import type {cache} from "@/types/db";
 
 export default function CreateCachePage(){
     const [step, setStep] = useState(1)
@@ -23,8 +25,19 @@ export default function CreateCachePage(){
         <Infrastructure key={2}/>,
         <NetworkSecurity key={3}/>,
         <StorageBackup key={4}/>,
-        <Monitoring key={5}/>
+        <Monitoring key={5}/>,
+        <ReviewDeploy key={6} />
     ]
+    const [cacheToCreate, setCacheToCreate] = useState<cache>({
+        name: "",
+        githubusername: "",
+        ispublic: true,
+        permission: "",
+        preferredcompressionmethod: "zstd",
+        uri: process.env.NEXT_PUBLIC_CACHE_URL!,
+        priority: 40,
+        id: -1
+    })
     return(
         <div className="flex flex-col gap-2 w-full">
             <div className="flex flex-col gap-1">

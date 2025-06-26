@@ -83,7 +83,7 @@ export const admin = createTRPCRouter({
         .input(z.object({
             userId: z.string().uuid(),
             type: z.enum(["add", "remove"]),
-            resourceType: z.enum(["cache"]),
+            resourceType: z.enum(["cache", "apikey"]),
             resourceId: z.number()
         }))
         .mutation(async ({ input}):Promise<{
@@ -96,7 +96,14 @@ export const admin = createTRPCRouter({
                 await db.connect()
                 if(input.resourceType === "cache"){
                     if(input.type === "add"){
+                        // Add user to the cache
                         success = await db.addUserToCache(input.resourceId, input.userId)
+                    }
+                }
+                if(input.resourceType === "apikey"){
+                    if(input.type === "add"){
+                        // Add user to the API key
+                        success = await db.addUserToApiKey(input.resourceId, input.userId)
                     }
                 }
                 await db.disconnect()

@@ -33,6 +33,15 @@ export default function AddDialogue({claimedCaches, caches, userID}:{claimedCach
                     userId: userID
                 })
 
+                for(const key of cache.api_keys ?? []){
+                    // Mutate the API key to indicate it has been changed
+                    changeCache.mutate({
+                        type: "add",
+                        resourceId: key.id,
+                        resourceType: "apikey",
+                        userId: userID
+                    })
+                }
                 // Check if the cache is already in the changedCaches array
                 if(!changedCaches.includes(cacheId)){
                     // If not, add it to the changedCaches array
