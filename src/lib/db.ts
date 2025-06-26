@@ -197,6 +197,24 @@ export default class Database{
             return res.rows[0] as User;
         })
     }
+    public async resetPassword(userID: string, password:string){
+        Logger.debug(`Resetting password for user ${userID}`);
+        const hashedPW = await this.hashPW(password);
+        return await this.client.query(`
+            UPDATE cache.users SET password = $1, updated_at = $2, must_change_password = false WHERE id = $3
+        `, [hashedPW, new Date(), userID])
+            .then((res)=>{
+                if(res.rowCount === 0){
+                    throw new Error("Failed to reset password");
+                }
+                Logger.debug(`Password for user ${userID} reset successfully`);
+                return true;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to reset password for user ${userID} ${err}`);
+                throw err;
+            })
+    }
 
     public async authenticateUser(username:string, password:string):Promise<User | null>{
         Logger.info(`Authenticating user ${username}`);

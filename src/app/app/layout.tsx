@@ -16,9 +16,16 @@ export default async function AppLayout({
         redirect("/")
     }
     const mustShowOOB = await api.user.mustShowOOB(session?.user.session_user.id)
+    const user = await api.user.getUser()
+    if(!user){
+        redirect("/")
+    }
     // Check if the user is an admin and if the user should be shown the onboarding flow
-    if(session.user.session_user.show_oob && mustShowOOB){
+    if(session.user.session_user.show_oob && user.show_oob){
         redirect("/oob")
+    }
+    if(session.user.session_user.must_change_password && user.must_change_password){
+        redirect("/user/pw-reset")
     }
     // Prefetch all caches this user has access to
     void api.cache.byUser.prefetch()

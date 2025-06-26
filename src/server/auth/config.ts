@@ -66,7 +66,8 @@ export const authConfig = {
           await db.disconnect()
         }
         catch(e){
-          Logger.error(`Error authenticating user ${e}`)
+
+Logger.error(`Error authenticating user ${e}`)
         }
 
         // If a user is returned, it means the credentials are valid and the user is authenticated.
