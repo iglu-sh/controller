@@ -17,18 +17,11 @@ import StorageBackup from "@/components/custom/cache/create/storageBackup";
 import Monitoring from "@/components/custom/cache/create/monitoring";
 import ReviewDeploy from "@/components/custom/cache/create/reviewDeploy";
 import type {cache} from "@/types/db";
+import type {cacheCreationObject} from "@/types/frontend";
 
 export default function CreateCachePage(){
     const [step, setStep] = useState(1)
-    const screens = [
-        <BasicInformation key={1}/>,
-        <Infrastructure key={2}/>,
-        <NetworkSecurity key={3}/>,
-        <StorageBackup key={4}/>,
-        <Monitoring key={5}/>,
-        <ReviewDeploy key={6} />
-    ]
-    const [cacheToCreate, setCacheToCreate] = useState<cache>({
+    const [cacheToCreate, setCacheToCreate] = useState<cacheCreationObject>({
         name: "",
         githubusername: "",
         ispublic: true,
@@ -36,8 +29,19 @@ export default function CreateCachePage(){
         preferredcompressionmethod: "zstd",
         uri: process.env.NEXT_PUBLIC_CACHE_URL!,
         priority: 40,
-        id: -1
+        id: -1,
+        selectedApiKeys: [],
+        collectMetrics: false,
+        retentionDays: 30,
     })
+    const screens = [
+        <BasicInformation key={1}/>,
+        <Infrastructure key={2}/>,
+        <NetworkSecurity key={3}/>,
+        <StorageBackup key={4}/>,
+        <Monitoring cacheToCreate={cacheToCreate} setCacheToCreate={(data:cacheCreationObject)=>{setCacheToCreate(data)}} key={5}/>,
+        <ReviewDeploy cacheToCreate={cacheToCreate} selectedApiKeys={[]} key={6} />
+    ]
     return(
         <div className="flex flex-col gap-2 w-full">
             <div className="flex flex-col gap-1">

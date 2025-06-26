@@ -1,8 +1,10 @@
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Database} from "lucide-react";
 import {Switch} from "@/components/ui/switch";
+import type {cache} from "@/types/db";
+import type {cacheCreationObject} from "@/types/frontend";
 
-export default function Monitoring(){
+export default function Monitoring({cacheToCreate, setCacheToCreate}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void}) {
     return(
         <Card>
             <CardHeader>
