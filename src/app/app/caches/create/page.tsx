@@ -35,15 +35,15 @@ export default function CreateCachePage(){
         retentionDays: 30,
     })
     const screens = [
-        <BasicInformation key={1}/>,
+        <BasicInformation cacheToCreate={cacheToCreate} setCacheToCreate={(data)=>setCacheToCreate(data)} key={1}/>,
         <Infrastructure key={2}/>,
-        <NetworkSecurity key={3}/>,
+        <NetworkSecurity cacheToCreate={cacheToCreate} setCacheToCreate={(data)=>setCacheToCreate(data)} key={3}/>,
         <StorageBackup key={4}/>,
         <Monitoring cacheToCreate={cacheToCreate} setCacheToCreate={(data:cacheCreationObject)=>{setCacheToCreate(data)}} key={5}/>,
         <ReviewDeploy cacheToCreate={cacheToCreate} selectedApiKeys={[]} key={6} />
     ]
     return(
-        <div className="flex flex-col gap-2 w-full">
+        <div className="flex flex-col gap-2 w-full justify-self-center">
             <div className="flex flex-col gap-1">
                 <h1 className="text-3xl font-bold">
                     Create New Cache
@@ -56,7 +56,7 @@ export default function CreateCachePage(){
                 <CardHeader>
                     <CardTitle>Step {step} out of 6</CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-4">
+                <CardContent className="flex flex-col gap-4 overflow-auto">
                     <Progress value={100/6 * step} />
                     <Steps step={step} />
                 </CardContent>

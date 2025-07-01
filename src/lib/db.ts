@@ -1,6 +1,6 @@
-import {Client} from "pg";
+import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
-import type {cache, User, xTheEverythingType} from "@/types/db";
+import type {apiKeyWithCache, cache, keys, User, xTheEverythingType} from "@/types/db";
 import bcrypt from "bcryptjs";
 export default class Database{
     private client: Client
@@ -377,5 +377,21 @@ export default class Database{
                 Logger.error(`Failed to add user ${userId} to API key ${apiKeyId} ${err}`);
                 return false;
             });
+    }
+
+    public async getApiKeysByUserId(userId:string):Promise<Array<apiKeyWithCache>>{
+        return await this.client.query(`
+            SELECT row_to_json(keys.*) as key, array_agg(row_to_json(ck.*)) as cacheKeyLinks, array_agg(row_to_json(ca.*)) as caches FROM cache.keys
+              INNER JOIN cache.cache_key as ck ON keys.id = ck.key_id
+              INNER JOIN cache.caches as ca ON ck.cache_id = ca.id
+            WHERE keys.user_id = $1
+            GROUP BY keys.id
+        `, [userId]).then((res:QueryResult<apiKeyWithCache>)=>{
+            return res.rows
+        })
+            .catch((err)=>{
+                Logger.error(`Failed to get API keys for user ${userId} ${err}`);
+                return [];
+            })
     }
 }

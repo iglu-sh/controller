@@ -16,7 +16,7 @@ export default function Page(){
     useEffect(() => {
         if(session.status != "loading" && !session.data){
             // If the user is not logged in, redirect to the login page
-            window.location.href = "/api/auth/signin";
+            window.location.href = "/api/auth/signin?callbackUrl=/user/pw-reset";
         }
     }, []);
     const changePassword = api.user.changePassword.useMutation({
@@ -26,7 +26,7 @@ export default function Page(){
                 return
             }
             toast.success("Password changed successfully, you will be redirected to the login page in a moment.");
-            await signOut({redirectTo: "/api/auth/signin"});
+            await signOut({redirectTo: "/api/auth/signin?callbackUrl=/app"});
         },
         onError: (error) => {
             console.log(error)

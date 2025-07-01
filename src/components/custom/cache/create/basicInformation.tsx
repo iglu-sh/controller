@@ -3,8 +3,9 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {InfoIcon} from "lucide-react";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
+import type {cacheCreationObject} from "@/types/frontend";
 
-export default function BasicInformation(){
+export default function BasicInformation({cacheToCreate, setCacheToCreate}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void}){
     return(
         <Card>
             <CardHeader>
@@ -21,11 +22,16 @@ export default function BasicInformation(){
             <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     <label htmlFor="cacheName" className="font-semibold text-sm">Cache Name *</label>
-                    <Input />
+                    <Input value={cacheToCreate.name} onChange={(val)=>{
+                        setCacheToCreate({
+                            ...cacheToCreate,
+                            name: val.target.value
+                        });
+                    }}/>
                 </div>
                 <div className="flex flex-col gap-2">
                     <label htmlFor="cacheName" className="font-semibold text-sm">Description</label>
-                    <Textarea />
+                    <Textarea disabled={true}/>
                 </div>
             </CardContent>
         </Card>

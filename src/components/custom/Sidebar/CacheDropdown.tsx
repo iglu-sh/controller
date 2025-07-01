@@ -37,8 +37,7 @@ export default function CacheDropdown({caches}: {caches: cache[]}){
    return(
        <div className="flex flex-row items-center gap-2">
            <DropdownMenu>
-               <DropdownMenuTrigger className="w-full" asChild>
-                   <Button variant="ghost" className="flex flex-row items-start p-2 h-full w-full">
+               <DropdownMenuTrigger className="flex flex-row items-start p-2 h-full w-full">
                        <div className="flex flex-col gap-1 w-full items-start">
                            <strong>
                                {caches.find((cache)=> cache.id.toString() === cacheID)?.name ?? "Select Cache"}
@@ -48,7 +47,6 @@ export default function CacheDropdown({caches}: {caches: cache[]}){
                            </div>
                        </div>
                        <ChevronDown />
-                   </Button>
                </DropdownMenuTrigger>
                <DropdownMenuContent align="start" className="w-[205px]">
                    {

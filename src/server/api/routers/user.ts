@@ -6,7 +6,7 @@ import {
 } from "@/server/api/trpc";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
-import type {User} from "@/types/db";
+import type {apiKeyWithCache, keys, User} from "@/types/db";
 
 
 export const user = createTRPCRouter({
@@ -78,5 +78,20 @@ export const user = createTRPCRouter({
             }
             await db.disconnect()
             return success
+        }),
+    getApiKeys: protectedProcedure
+        .query(async ({ ctx }):Promise<apiKeyWithCache[]> => {
+            const db = new Database();
+            try{
+                await db.connect();
+                const apiKeys = await db.getApiKeysByUserId(ctx.session.user.session_user.id);
+                await db.disconnect();
+                return apiKeys;
+            }
+            catch(e){
+                Logger.error(`Failed to get API keys for user: ${e}`);
+                await db.disconnect();
+                throw e;
+            }
         })
 });

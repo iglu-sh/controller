@@ -159,5 +159,10 @@ export type xTheEverythingType = {
         count: number,
         size: number | null
     },
+}
 
+export type apiKeyWithCache = {
+    key: keys,
+    cacheKeyLinks: cache_key[],
+    caches: cache[]
 }
