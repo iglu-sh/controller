@@ -1,7 +1,8 @@
 import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
-import type {apiKeyWithCache, cache, keys, User, xTheEverythingType} from "@/types/db";
+import type {apiKeyWithCache, cache, keys, signing_key_cache_api_link, User, xTheEverythingType} from "@/types/db";
 import bcrypt from "bcryptjs";
+import type {cacheCreationObject} from "@/types/frontend";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -393,5 +394,98 @@ export default class Database{
                 Logger.error(`Failed to get API keys for user ${userId} ${err}`);
                 return [];
             })
+    }
+
+    public async getAllUsers():Promise<Array<User>>{
+        return await this.client.query(`
+            SELECT * FROM cache.users
+        `).then((res)=>{
+            return res.rows.map((row:User)=>{
+                return {
+                    ...row,
+                    password: "", // Don't return the password hash
+                }
+            }) as User[];
+        }).catch((err)=>{
+            Logger.error(`Failed to get all users ${err}`);
+            return [];
+        })
+    }
+
+    public async linkApiKeyToCache(apiKeyId:number, cacheId:number):Promise<boolean>{
+        await this.client.query(`
+            INSERT INTO cache.cache_key (cache_id, key_id)
+                VALUES ($1, $2)
+        `, [cacheId, apiKeyId])
+        // Get all the public signing keys for this API key and link them to the cache
+        Logger.debug(`Linking API key ${apiKeyId} to cache ${cacheId}`);
+        const signingKeys = await this.client.query(`
+            SELECT DISTINCT signing_key_cache_api_link.signing_key_id FROM cache.signing_key_cache_api_link
+        `)
+            .then((res)=>{
+                return res.rows as signing_key_cache_api_link[]
+            })
+        for(const link of signingKeys){
+            await this.client.query(`
+                INSERT INTO cache.signing_key_cache_api_link (cache_id, key_id, signing_key_id)
+                    VALUES ($1, $2, $3)
+            `, [cacheId, apiKeyId, link.signing_key_id])
+        }
+        return true
+    }
+
+    public async createCache(userID:string, cacheToCreate:cacheCreationObject):Promise<cache>{
+        // Check if this cache name already exists
+        await this.client.query(`
+            SELECT * FROM cache.caches WHERE name = $1
+        `, [cacheToCreate.name]).then((res)=>{
+            if(res.rows.length > 0){
+                throw new Error("Cache with this name already exists");
+            }
+        })
+        // Create a new cache in the database
+        await this.client.query(`
+            START TRANSACTION;
+        `)
+        const cache = await this.client.query(`
+            INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri) 
+            VALUES ('', $1, $2, $3, $4, $5)
+            RETURNING *
+        `, [cacheToCreate.ispublic, cacheToCreate.name, cacheToCreate.permission, cacheToCreate.preferredcompressionmethod, process.env.NEXT_PUBLIC_CACHE_URL!])
+            .then((res)=>{
+                if(res.rows.length === 0){
+                    throw new Error("Unknown error while creating cache");
+                }
+                return res.rows[0] as cache;
+            })
+
+        //Check if the creator is in the allowedUsers array, if not add them
+        if(!cacheToCreate.allowedUsers || cacheToCreate.allowedUsers.length === 0){
+            cacheToCreate.allowedUsers = []
+            cacheToCreate.allowedUsers.push({
+                id: userID,
+                username: "", // Username will be filled later
+                email: "", // Email will be filled later
+                is_admin: false, // Default to false
+                is_verified: false, // Default to false
+                must_change_password: false, // Default to false
+                show_oob: false, // Default to false
+                avatar_color: "#000000" // Default to black
+            } as User);
+        }
+
+        // Link the cache to every user that is in the allowedUsers array
+        if(cacheToCreate.allowedUsers && cacheToCreate.allowedUsers.length > 0){
+            for(const user of cacheToCreate.allowedUsers){
+                await this.addUserToCache(cache.id, user.id);
+            }
+        }
+
+        // Link every allowed api key (including the signing key) to the cache
+        for(const apiKey of cacheToCreate.selectedApiKeys){
+            await this.linkApiKeyToCache(apiKey.id, cache.id)
+        }
+        await this.client.query(`COMMIT TRANSACTION;`)
+        return cache
     }
 }

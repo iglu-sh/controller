@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+    adminProcedure,
     createTRPCRouter,
     protectedProcedure
 } from "@/server/api/trpc";
@@ -93,5 +94,20 @@ export const user = createTRPCRouter({
                 await db.disconnect();
                 throw e;
             }
-        })
+        }),
+    getAll: adminProcedure
+        .query(async (): Promise<User[]> => {
+            const db = new Database();
+            try{
+                await db.connect();
+                const users = await db.getAllUsers();
+                await db.disconnect();
+                return users;
+            }
+            catch(e){
+                Logger.error(`Failed to get all users: ${e}`);
+                await db.disconnect();
+                throw e;
+            }
+        }),
 });

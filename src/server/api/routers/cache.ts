@@ -7,6 +7,7 @@ import {
 import type * as dbTypes from "@/types/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
+import type {cacheCreationObject} from "@/types/frontend";
 
 export const cache = createTRPCRouter({
     byUser: protectedProcedure
@@ -28,4 +29,24 @@ export const cache = createTRPCRouter({
             await db.disconnect()
             return data;
         }),
+    createCache: protectedProcedure
+        .input(z.custom<cacheCreationObject>())
+        .mutation(async ({ctx, input}) => {
+            const db = new Database();
+            try{
+                await db.connect();
+                const cache = await db.createCache(ctx.session.user.id, input).catch((err => {
+                    Logger.error(`Failed to create cache: ${err}`);
+                    throw new Error(JSON.stringify({message: "Failed to create cache", cause: "Already exists"}))
+                }));
+                await db.disconnect();
+                console.log(cache)
+                return cache;
+            }
+            catch(err){
+                Logger.error(`Failed to create cache: ${err}`);
+                await db.disconnect();
+                throw new Error(err as string || "Failed to create cache");
+            }
+        })
 });

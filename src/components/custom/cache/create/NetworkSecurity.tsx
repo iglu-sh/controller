@@ -6,16 +6,17 @@ import {api} from "@/trpc/react"
 import type {cacheCreationObject} from "@/types/frontend";
 import {useEffect} from "react";
 import type {ColumnDef} from "@tanstack/react-table";
-import type {apiKeyWithCache} from "@/types/db";
+import type {apiKeyWithCache, User} from "@/types/db";
 import {DataTable} from "@/components/custom/DataTable";
 import {columns} from "@/components/custom/oob/claimable/apiKeys";
 import {Checkbox} from "@/components/ui/checkbox";
+import {Button} from "@/components/ui/button";
+import {useSession} from "next-auth/react";
+import SearchUserDialogue from "@/components/custom/cache/create/searchUserDialogue";
 
-export default function NetworkSecurity({cacheToCreate, setCacheToCreate}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void}){
+export default function NetworkSecurity({cacheToCreate, setCacheToCreate, setInvalid}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void, setInvalid:(data:boolean)=>void}){
     const availableApiKeys = api.user.getApiKeys.useQuery()
-    useEffect(()=>{
-        console.log("Available API Keys: ", availableApiKeys.data)
-    }, [availableApiKeys.data])
+    const allUsers = api.user.getAll.useQuery()
     const columns:ColumnDef<apiKeyWithCache>[] = [
         {
             accessorKey: "key.name",
@@ -57,7 +58,35 @@ export default function NetworkSecurity({cacheToCreate, setCacheToCreate}:{cache
             }
         }
     ]
-
+    const users:ColumnDef<User>[] = [
+        {
+            accessorKey: "username",
+            header: "User Name"
+        },
+        {
+            accessorKey: "email",
+            header: "Email"
+        },
+        {
+            accessorKey: "id",
+            header: "Actions",
+            cell: ({row}) => {
+                return (
+                    <Button variant="destructive" onClick={()=>{
+                        const selectedUsers = [...cacheToCreate.allowedUsers];
+                        // Remove the user from the allowed users
+                        setCacheToCreate({
+                            ...cacheToCreate,
+                            allowedUsers: selectedUsers.filter((u) => u.id !== row.original.id)
+                        });
+                    }}>Remove</Button>
+                )
+            }
+        }
+    ]
+    useEffect(() => {
+        setInvalid(false)
+    }, [cacheToCreate]);
     return(
         <Card>
             <CardHeader>
@@ -93,6 +122,17 @@ export default function NetworkSecurity({cacheToCreate, setCacheToCreate}:{cache
                         Select which API keys can access this cache. If none are selected, you will not be able to push to this cache until you create or add one.
                     </div>
                     <DataTable columns={columns} data={availableApiKeys.data ?? []} />
+                </div>
+                <div className="col-span-2 flex flex-col gap-2">
+                    <strong>Allowed Users</strong>
+                    <div className="text-sm text-muted-foreground">
+                        Select which users can administer this cache. If none are selected, you are the only user who can administer this cache.
+                    </div>
+                    <DataTable columns={users} data={cacheToCreate.allowedUsers} />
+                    {
+                        allUsers.isLoading && allUsers.data ? <div className="text-muted-foreground">Loading users...</div> :
+                            <SearchUserDialogue setCacheToCreate={(data:cacheCreationObject)=>setCacheToCreate(data)} cacheToCreate={cacheToCreate} availUsers={allUsers.data!} />
+                    }
                 </div>
                 <div className="col-span-2 flex flex-col gap-2">
                     <strong>Allowed IP Ranges (optional)</strong>

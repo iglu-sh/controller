@@ -4,7 +4,7 @@ import {Switch} from "@/components/ui/switch";
 import type {cache} from "@/types/db";
 import type {cacheCreationObject} from "@/types/frontend";
 
-export default function Monitoring({cacheToCreate, setCacheToCreate}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void}) {
+export default function Monitoring({cacheToCreate, setCacheToCreate, setInvalid}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void, setInvalid:(data:boolean)=>void}) {
     return(
         <Card>
             <CardHeader>

@@ -2,8 +2,24 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {HardDrive} from "lucide-react";
 import {Switch} from "@/components/ui/switch";
 import {Input} from "@/components/ui/input";
+import type {cacheCreationObject} from "@/types/frontend";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {useEffect} from "react";
 
-export default function StorageBackup(){
+export default function StorageBackup({
+    cacheToCreate,
+    setCacheToCreate,
+    setInvalid
+}:{cacheToCreate:cacheCreationObject, setCacheToCreate:(cache:cacheCreationObject) => void, setInvalid:(invalid:boolean) => void}) {
+    useEffect(()=>{
+        // Ensure that something is entered for preferred compression method
+        if(cacheToCreate.preferredcompressionmethod === ""){
+            setInvalid(true)
+        }
+        else{
+            setInvalid(false)
+        }
+    }, [cacheToCreate]);
     return(
         <Card>
             <CardHeader>
@@ -39,6 +55,29 @@ export default function StorageBackup(){
                         </div>
                     </div>
                     <Input type="text" />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <div className="flex flex-col">
+                        <strong>
+                            Preferred Compression Method
+                        </strong>
+                        <div className="text-sm text-muted-foreground">
+                            Choose the default compression method for stored packages.
+                        </div>
+                    </div>
+                    <Select onValueChange={(value)=>{setCacheToCreate({
+                        ...cacheToCreate,
+                        preferredcompressionmethod: value
+                    })}}
+                    >
+                        <SelectTrigger aria-invalid={cacheToCreate.preferredcompressionmethod === ""}>
+                            <SelectValue placeholder="Compression Method" defaultValue="ZSDT"/>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ZSDT">Zstandard (ZSDT)</SelectItem>
+                            <SelectItem value="XZ">XZ Compression (XZ)</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </CardContent>
 
