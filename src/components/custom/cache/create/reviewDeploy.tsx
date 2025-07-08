@@ -148,7 +148,7 @@ export default function ReviewDeploy({cacheToCreate}:{cacheToCreate: cacheCreati
                                                 Create Another Cache
                                             </Button>
                                         </Link>
-                                        <Link href={"/app/caches/manage?cacheID=" + createdCache!.id}>
+                                        <Link href={"/app?cacheID=" + createdCache!.id}>
                                             <Button>
                                                 Go to created Cache
                                             </Button>
