@@ -120,7 +120,7 @@ export default function ReviewDeploy({cacheToCreate}:{cacheToCreate: cacheCreati
                         </div>
                     </CardContent>
                 </Card>
-                <Dialog>
+                <Dialog onOpenChange={() => {setCreated(null); setCreatedCache(null)}}>
                     <DialogTrigger asChild>
                         <Button onClick={()=>{
                             createCache.mutate(cacheToCreate)
