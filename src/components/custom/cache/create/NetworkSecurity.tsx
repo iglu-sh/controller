@@ -27,6 +27,11 @@ export default function NetworkSecurity({cacheToCreate, setCacheToCreate, setInv
             header: "Associated Caches",
             cell: ({row})=>{
                 const caches = row.original.caches.map(cache => cache.name).join(", ");
+
+                if(caches.length > 100){
+                    return <span className="text-sm text-muted-foreground">{caches.slice(0, 50)}...</span>;
+                }
+
                 return <span className="text-sm text-muted-foreground">{caches || "None"}</span>;
             }
         },

@@ -166,3 +166,23 @@ export type apiKeyWithCache = {
     cacheKeyLinks: cache_key[],
     caches: cache[]
 }
+export type dbLogResourceType = 'cache' | 'derivation' | 'user' | 'builder' | 'signing_key' | 'api_key'
+export type dbLogType = 'create' | 'update' | 'delete' | 'read'
+export type dbLogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+export type log = {
+    id: uuid,
+    timestamp: Date,
+    cache_id: number,
+    type: dbLogType,
+    resource_type: dbLogResourceType,
+    resource_id: string,
+    level: dbLogLevel,
+    body: {
+        'type': dbLogResourceType,
+        'action': dbLogType,
+        'new': object | null,
+        'old': object | null
+    },
+    resource_name: string,
+    updated_by: User,
+}

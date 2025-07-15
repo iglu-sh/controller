@@ -8,6 +8,7 @@ import type * as dbTypes from "@/types/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import type {cacheCreationObject} from "@/types/frontend";
+import type {cacheOverview} from "@/types/api";
 
 export const cache = createTRPCRouter({
     byUser: protectedProcedure
@@ -47,6 +48,28 @@ export const cache = createTRPCRouter({
                 Logger.error(`Failed to create cache: ${err}`);
                 await db.disconnect();
                 throw new Error(err as string || "Failed to create cache");
+            }
+        }),
+    getOverview: protectedProcedure
+        .input(z.object({cacheID: z.number()}))
+        .query(async ({ctx, input}):Promise<cacheOverview> => {
+            const db = new Database();
+
+            try {
+                await db.connect()
+                const availableCachesPerUser = await db.getCachesByUserId(ctx.session.user.id)
+                if(!availableCachesPerUser.find(c => c.id === input.cacheID)){
+                    throw new Error("You do not have access to this cache");
+                }
+
+                const cacheInfo = await db.getCacheById(input.cacheID);
+
+                await db.disconnect()
+            }
+            catch(err){
+                Logger.error(`Failed to connect to get cacheOverview: ${err}`);
+                await db.disconnect()
+                throw new Error(err as string || "Failed to get cacheOverview");
             }
         })
 });

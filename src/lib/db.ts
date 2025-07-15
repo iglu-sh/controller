@@ -1,6 +1,14 @@
 import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
-import type {apiKeyWithCache, cache, keys, signing_key_cache_api_link, User, xTheEverythingType} from "@/types/db";
+import type {
+    apiKeyWithCache,
+    cache,
+    keys, log,
+    signing_key_cache_api_link,
+    User,
+    uuid,
+    xTheEverythingType
+} from "@/types/db";
 import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
 export default class Database{
@@ -131,7 +139,40 @@ export default class Database{
                 cache_id int constraint cache_fk references cache.caches ON DELETE CASCADE,
                 user_id uuid constraint user_fk references cache.users ON DELETE CASCADE
             );
-                COMMIT TRANSACTION;
+            CREATE TYPE cache.level AS ENUM (
+                'debug',
+                'info',
+                'warn',
+                'error',
+                'fatal'
+            );
+            CREATE TYPE cache.log_type AS ENUM (
+                'create',
+                'update',
+                'delete',
+                'read'
+            );
+            CREATE TYPE cache.log_resource_type AS ENUM (
+                'cache',
+                'derivation',
+                'user',
+                'builder',
+                'signing_key',
+                'api_key'
+            );
+            CREATE TABLE cache.logs (
+                id uuid NOT NULL DEFAULT gen_random_uuid(),
+                timestamp timestamptz NOT NULL DEFAULT now(),
+                cache_id bigint NOT NULL REFERENCES cache.caches(id) ON DELETE CASCADE,
+                type cache.log_type NOT NULL,
+                resource_type cache.log_resource_type NOT NULL,
+                resource_id text NOT NULL,
+                level cache.level NOT NULL,
+                body jsonb NOT NULL,
+                resource_name TEXT DEFAULT NULL,
+                updated_by uuid NULL REFERENCES cache.users(id) ON DELETE SET NULL
+            );
+            COMMIT TRANSACTION;
         `)
 
         // Modifies the existing cache tables to include a userID
@@ -139,7 +180,11 @@ export default class Database{
         await this.client.query(`
             ALTER TABLE cache.keys ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT keys_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
         `)
+
+        // Set up the Audit Logging
+        await this.createAuditLog()
         Logger.debug('Database tables set up successfully');
+
 
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
         const res = await this.client.query('SELECT COUNT(*) FROM cache.users');
@@ -158,6 +203,252 @@ export default class Database{
             true, // must_change_password
             true // show_setup
         )
+    }
+    private async createAuditLog(){
+        Logger.debug('Creating procedures for audit logging');
+        await this.client.query(`
+            START TRANSACTION;
+            -- Cache Audit Logging
+            CREATE OR REPLACE FUNCTION cache.cache_logging() RETURNS TRIGGER AS $$
+                DECLARE cache_id bigint;
+                DECLARE type cache.log_type;
+                DECLARE resource_type cache.log_resource_type;
+                DECLARE resource_id text;
+                DECLARE level cache.level;
+                DECLARE body jsonb;
+                DECLARE resource_name TEXT;
+                BEGIN
+                     RAISE NOTICE 'cache.cache_logging() called with tg_op: %', TG_OP;
+                     IF tg_op = 'DELETE' THEN
+                            cache_id := OLD.id;
+                            type := 'delete';
+                            resource_type := 'cache';
+                            resource_id := OLD.id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'cache', 'action', 'delete', 'old', row_to_json(OLD), 'new', NULL);
+                            resource_name := OLD.name;
+                     ELSIF tg_op = 'UPDATE' THEN
+                         cache_id := OLD.id;
+                            type := 'update';
+                            resource_type := 'cache';
+                            resource_id := OLD.id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'cache', 'action', 'update', 'old', row_to_json(OLD), 'new', row_to_json(NEW));
+                            resource_name := OLD.name;
+                     ELSEIF tg_op = 'INSERT' THEN
+                         cache_id := NEW.id;
+                            type := 'create';
+                            resource_type := 'cache';
+                            resource_id := NEW.id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'cache', 'action', 'create', 'old', NULL, 'new', row_to_json(NEW));
+                            resource_name := NEW.name;
+                     END IF;
+                     INSERT INTO cache.logs(cache_id, type, resource_type, resource_id, level, body, resource_name, updated_by)
+                     VALUES(
+                            cache_id,
+                            type,
+                            resource_type,
+                            resource_id,
+                            level,
+                            body,
+                            resource_name,
+                            current_setting('cache.current_user', true)::uuid
+                     );
+                     RETURN NULL;
+                end;
+                $$ LANGUAGE plpgsql;
+            CREATE OR REPLACE TRIGGER cache_logging_trigger
+                AFTER INSERT OR UPDATE OR DELETE ON cache.caches
+                FOR EACH ROW EXECUTE FUNCTION cache.cache_logging();
+                
+            -- Cache Key Audit Logging
+            CREATE OR REPLACE FUNCTION cache.key_change() RETURNS TRIGGER AS $$
+                DECLARE cache_id bigint;
+                DECLARE type cache.log_type;
+                DECLARE resource_type cache.log_resource_type;
+                DECLARE resource_id text;
+                DECLARE level cache.level;
+                DECLARE body jsonb;
+                DECLARE resource_name TEXT;
+                BEGIN
+                     IF tg_op = 'DELETE' THEN
+                            cache_id := OLD.cache_id;
+                            type := 'delete';
+                            resource_type := 'api_key';
+                            resource_id := OLD.key_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'api_key', 'action', 'delete', 'old', row_to_json(OLD), 'new', NULL);
+                     ELSIF tg_op = 'UPDATE' THEN
+                         cache_id := OLD.cache_id;
+                            type := 'update';
+                            resource_type := 'api_key';
+                            resource_id := OLD.key_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'api_key', 'action', 'update', 'old', row_to_json(OLD), 'new', row_to_json(NEW));
+                     ELSEIF tg_op = 'INSERT' THEN
+                         cache_id := NEW.cache_id;
+                            type := 'create';
+                            resource_type := 'api_key';
+                            resource_id := NEW.key_id::text;
+                            level := 'info';
+                         RAISE NOTICE 'test';
+                            body := json_build_object('type', 'api_key', 'action', 'create', 'old', NULL, 'new', row_to_json(NEW));
+                     END IF;
+                     resource_name := (SELECT name FROM cache.keys WHERE id = resource_id::bigint LIMIT 1)::TEXT;
+                     INSERT INTO cache.logs(cache_id, type, resource_type, resource_id, level, body, resource_name, updated_by)
+                     VALUES(
+                            cache_id::BIGINT,
+                            type,
+                            resource_type,
+                            resource_id::TEXT,
+                            level,
+                            body,
+                            resource_name,
+                            current_setting('cache.current_user', true)::uuid
+                     );
+                     RETURN NULL;
+                end;
+                $$ LANGUAGE plpgsql;
+            CREATE OR REPLACE TRIGGER cache_key_change_logging_trigger
+                AFTER INSERT OR UPDATE OR DELETE ON cache.cache_key
+                FOR EACH ROW EXECUTE FUNCTION cache.key_change();
+                
+                
+            -- Public Signing Key Audit Logging
+            
+            CREATE OR REPLACE FUNCTION cache.public_signing_key_change() RETURNS TRIGGER AS $$
+                DECLARE cache_id bigint;
+                DECLARE type cache.log_type;
+                DECLARE resource_type cache.log_resource_type;
+                DECLARE resource_id text;
+                DECLARE level cache.level;
+                DECLARE body jsonb;
+                DECLARE resource_name TEXT;
+                BEGIN
+                     IF tg_op = 'DELETE' THEN
+                            cache_id := OLD.cache_id;
+                            type := 'delete';
+                            resource_type := 'signing_key';
+                            resource_id := OLD.signing_key_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'signing_key', 'action', 'delete', 'old', row_to_json(OLD), 'new', NULL);
+                     ELSIF tg_op = 'UPDATE' THEN
+                         cache_id := OLD.cache_id;
+                            type := 'update';
+                            resource_type := 'signing_key';
+                            resource_id := OLD.signing_key_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'signing_key', 'action', 'update', 'old', row_to_json(OLD), 'new', row_to_json(NEW));
+                     ELSEIF tg_op = 'INSERT' THEN
+                         cache_id := NEW.cache_id;
+                            type := 'create';
+                            resource_type := 'signing_key';
+                            resource_id := NEW.signing_key_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'public_key', 'action', 'create', 'old', NULL, 'new', row_to_json(NEW));
+                     END IF;
+                     resource_name := (SELECT name FROM cache.public_signing_keys WHERE id = resource_id::bigint LIMIT 1)::TEXT;
+                     INSERT INTO cache.logs(cache_id, type, resource_type, resource_id, level, body, resource_name, updated_by)
+                     VALUES(
+                            cache_id::BIGINT,
+                            type,
+                            resource_type,
+                            resource_id::TEXT,
+                            level,
+                            body,
+                            resource_name,
+                            current_setting('cache.current_user', true)::uuid
+                     );
+                     RETURN NULL;
+                end;
+                $$ LANGUAGE plpgsql;
+            CREATE OR REPLACE TRIGGER cache_public_signing_key_change_logging_trigger
+                AFTER INSERT OR UPDATE OR DELETE ON cache.signing_key_cache_api_link
+                FOR EACH ROW EXECUTE FUNCTION cache.public_signing_key_change();
+                
+            -- User Assignment Change Logging    
+            CREATE OR REPLACE FUNCTION cache.user_assignment_change() RETURNS TRIGGER AS $$
+                DECLARE cache_id bigint;
+                DECLARE type cache.log_type;
+                DECLARE resource_type cache.log_resource_type;
+                DECLARE resource_id text;
+                DECLARE level cache.level;
+                DECLARE body jsonb;
+                DECLARE resource_name TEXT;
+                BEGIN
+                     IF tg_op = 'DELETE' THEN
+                            cache_id := OLD.cache_id;
+                            type := 'delete';
+                            resource_type := 'user';
+                            resource_id := OLD.user_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'user', 'action', 'delete', 'old', row_to_json(OLD), 'new', NULL);
+                     ELSIF tg_op = 'UPDATE' THEN
+                         cache_id := OLD.cache_id;
+                            type := 'update';
+                            resource_type := 'user';
+                            resource_id := OLD.user_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'user', 'action', 'update', 'old', row_to_json(OLD), 'new', row_to_json(NEW));
+                     ELSEIF tg_op = 'INSERT' THEN
+                         cache_id := NEW.cache_id;
+                            type := 'create';
+                            resource_type := 'user';
+                            resource_id := NEW.user_id::text;
+                            level := 'info';
+                            body := json_build_object('type', 'user', 'action', 'create', 'old', NULL, 'new', row_to_json(NEW));
+                     END IF;
+                     resource_name := (SELECT username FROM cache.users WHERE id = resource_id::uuid LIMIT 1)::TEXT;
+                     INSERT INTO cache.logs(cache_id, type, resource_type, resource_id, level, body, resource_name, updated_by)
+                     VALUES(
+                            cache_id::BIGINT,
+                            type,
+                            resource_type,
+                            resource_id::TEXT,
+                            level,
+                            body,
+                            resource_name,
+                            current_setting('cache.current_user', true)::uuid
+                     );
+                     RETURN NULL;
+                end;
+                $$ LANGUAGE plpgsql;
+            CREATE OR REPLACE TRIGGER cache_user_assignment_change_trigger
+                AFTER INSERT OR UPDATE OR DELETE ON cache.cache_user_link
+                FOR EACH ROW EXECUTE FUNCTION cache.user_assignment_change();
+            COMMIT TRANSACTION;
+        `)
+    }
+    public async query(query:string, params:Array<unknown> = [], user?:uuid){
+        Logger.debug(`Executing query: ${query} with params: ${params}`);
+        if(user){
+            await this.client.query(
+                `SELECT set_config('cache.current_user', $1, false);`
+                , [user])
+        }
+        return await this.client.query(query, params)
+    }
+
+    public async getAuditLogForCache(cacheId:number):Promise<Array<log>>{
+        return await this.query(`
+            SELECT 
+                logs.id as id,
+                timestamp,
+                cache_id,
+                type,
+                resource_id,
+                resource_type,
+                level,
+                body,
+                resource_name,
+                row_to_json(users.*) as updated_by
+                FROM cache.logs 
+                         INNER JOIN cache.users ON logs.updated_by = users.id 
+                WHERE cache_id = $1 ORDER BY timestamp DESC;
+        `, [cacheId]).then((res:QueryResult<log>)=>{
+            return res.rows;
+        })
     }
     public async getUserByNameOrEmail(username:string, email:string):Promise<User | null>{
         return await this.client.query(`
@@ -272,6 +563,8 @@ export default class Database{
             })
     }
 
+    // Mainly used for the OOB experience, and it should not be used outside of that
+    // It does require a lot of processing power, so it should only be used when necessary
     public async getEverything():Promise<Array<xTheEverythingType>>{
         return await this.client.query(`
             SELECT row_to_json(ca.*) as cache,
@@ -366,7 +659,9 @@ export default class Database{
             return [];
         })
     }
-
+    public async getCacheById(cacheId:number):Promise<cache | null>{
+        return await this.query(``)
+    }
     public async addUserToApiKey(apiKeyId:number, userId:string):Promise<boolean>{
         return await this.client.query(`
             UPDATE cache.keys SET user_id = $1 WHERE id = $2
@@ -436,22 +731,22 @@ export default class Database{
 
     public async createCache(userID:string, cacheToCreate:cacheCreationObject):Promise<cache>{
         // Check if this cache name already exists
-        await this.client.query(`
-            SELECT * FROM cache.caches WHERE name = $1
-        `, [cacheToCreate.name]).then((res)=>{
+        await this.query(`SELECT * FROM cache.caches WHERE name = $1`, [cacheToCreate.name], userID as uuid).then((res)=>{
             if(res.rows.length > 0){
                 throw new Error("Cache with this name already exists");
             }
         })
+
+        Logger.debug(`Creating cache with name ${cacheToCreate.name} for user ${userID}`);
         // Create a new cache in the database
-        await this.client.query(`
-            START TRANSACTION;
-        `)
-        const cache = await this.client.query(`
-            INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri) 
+        await this.query(`START TRANSACTION;`)
+
+        // Create the cache
+        const cache = await this.query(`
+            INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri)
             VALUES ('', $1, $2, $3, $4, $5)
             RETURNING *
-        `, [cacheToCreate.ispublic, cacheToCreate.name, cacheToCreate.permission, cacheToCreate.preferredcompressionmethod, process.env.NEXT_PUBLIC_CACHE_URL!])
+        `, [cacheToCreate.ispublic, cacheToCreate.name, cacheToCreate.permission, cacheToCreate.preferredcompressionmethod, process.env.NEXT_PUBLIC_CACHE_URL!], userID as uuid)
             .then((res)=>{
                 if(res.rows.length === 0){
                     throw new Error("Unknown error while creating cache");
@@ -485,7 +780,7 @@ export default class Database{
         for(const apiKey of cacheToCreate.selectedApiKeys){
             await this.linkApiKeyToCache(apiKey.id, cache.id)
         }
-        await this.client.query(`COMMIT TRANSACTION;`)
+        await this.query(`COMMIT TRANSACTION;`)
         return cache
     }
 }
