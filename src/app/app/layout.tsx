@@ -40,7 +40,7 @@ export default async function AppLayout({
                     <AppSidebar />
                 </SessionProvider>
                 <main className="max-w-[800px] w-[800px] ml-auto mr-auto mt-10 max-h-screen flex justify-start items-start">
-                    {children}
+                        {children}
                 </main>
                 <Toaster richColors={true} />
             </SidebarProvider>

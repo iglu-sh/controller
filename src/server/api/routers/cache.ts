@@ -63,11 +63,26 @@ export const cache = createTRPCRouter({
                 }
 
                 const cacheInfo = await db.getCacheById(input.cacheID);
+                if(!cacheInfo){
+                    throw new Error("Cache not found");
+                }
+                let cacheOverview: cacheOverview = {
+                    info: cacheInfo,
+                    audit_log: [],
+                    packages: {
+                        total: 0,
+                        storage_used: 0
+                    }
+                }
+
+                // Fetch the audit log for the cache
+                cacheOverview.audit_log = await db.getAuditLogByCacheId(input.cacheID);
 
                 await db.disconnect()
+                return cacheOverview
             }
             catch(err){
-                Logger.error(`Failed to connect to get cacheOverview: ${err}`);
+                Logger.error(`Failed to get cacheOverview: ${err}`);
                 await db.disconnect()
                 throw new Error(err as string || "Failed to get cacheOverview");
             }
