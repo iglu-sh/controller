@@ -11,12 +11,14 @@ export default async function App(){
     void api.cache.byUser.prefetch()
     return(
         <div>
-            <h1 className="text-3xl font-bold">
-                Welcome to Better Controller
-            </h1>
-            <p className="mt-2">
-                This is the main application page.
-            </p>
+            <div className="flex flex-col">
+                <h1 className="text-3xl font-bold">
+                    Welcome to Better Controller
+                </h1>
+                <p className="mt-2">
+                    This is the main application page.
+                </p>
+            </div>
         </div>
     )
 }

@@ -139,28 +139,38 @@ export default class Database{
                 cache_id int constraint cache_fk references cache.caches ON DELETE CASCADE,
                 user_id uuid constraint user_fk references cache.users ON DELETE CASCADE
             );
-            CREATE TYPE cache.level AS ENUM (
-                'debug',
-                'info',
-                'warn',
-                'error',
-                'fatal'
-            );
-            CREATE TYPE cache.log_type AS ENUM (
-                'create',
-                'update',
-                'delete',
-                'read'
-            );
-            CREATE TYPE cache.log_resource_type AS ENUM (
-                'cache',
-                'derivation',
-                'user',
-                'builder',
-                'signing_key',
-                'api_key'
-            );
-            CREATE TABLE cache.logs (
+            DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'level') THEN
+                        CREATE TYPE cache.level AS ENUM (
+                            'debug',
+                            'info',
+                            'warn',
+                            'error',
+                            'fatal'
+                            );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'log_type') THEN
+                        CREATE TYPE cache.log_type AS ENUM (
+                            'create',
+                            'update',
+                            'delete',
+                            'read'
+                        );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'log_resource_type') THEN
+                        CREATE TYPE cache.log_resource_type AS ENUM (
+                            'cache',
+                            'derivation',
+                            'user',
+                            'builder',
+                            'signing_key',
+                            'api_key'
+                            );
+                    END IF;
+            END $$;
+
+            CREATE TABLE IF NOT EXISTS cache.logs (
                 id uuid NOT NULL DEFAULT gen_random_uuid(),
                 timestamp timestamptz NOT NULL DEFAULT now(),
                 cache_id bigint NOT NULL REFERENCES cache.caches(id) ON DELETE CASCADE,
@@ -660,7 +670,9 @@ export default class Database{
         })
     }
     public async getCacheById(cacheId:number):Promise<cache | null>{
-        return await this.query(``)
+        return await this.query(`SELECT * FROM cache.caches WHERE id = $1`, [cacheId]).then((res)=>{
+            return res.rows.length > 0 ? res.rows[0] as cache : null;
+        })
     }
     public async addUserToApiKey(apiKeyId:number, userId:string):Promise<boolean>{
         return await this.client.query(`

@@ -1,7 +1,7 @@
 'use server'
 import {SidebarProvider} from "@/components/ui/sidebar";
 import AppSidebar from "@/components/custom/Sidebar/Sidebar";
-import { auth } from "@/server/auth";
+import {auth, signOut} from "@/server/auth";
 import {redirect} from "next/navigation";
 import {api} from "@/trpc/server";
 import {HydrateClient} from "@/trpc/server";
@@ -16,7 +16,10 @@ export default async function AppLayout({
         redirect("/")
     }
     const mustShowOOB = await api.user.mustShowOOB(session?.user.session_user.id)
-    const user = await api.user.getUser()
+    const user = await api.user.getUser().catch(async ()=>{
+        // Redirect the user to the sign-in page if the user is not found
+        redirect("/api/auth/signin")
+    })
     if(!user){
         redirect("/")
     }
