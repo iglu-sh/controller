@@ -66,7 +66,7 @@ export const cache = createTRPCRouter({
                 if(!cacheInfo){
                     throw new Error("Cache not found");
                 }
-                let cacheOverview: cacheOverview = {
+                const cacheOverview: cacheOverview = {
                     info: cacheInfo,
                     audit_log: [],
                     packages: {
@@ -86,5 +86,9 @@ export const cache = createTRPCRouter({
                 await db.disconnect()
                 throw new Error(err as string || "Failed to get cacheOverview");
             }
+        }),
+    getBuilders: protectedProcedure
+        .query(async ({ctx, input}) => {
+
         })
 });

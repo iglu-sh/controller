@@ -1,7 +1,7 @@
 import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
 import type {
-    apiKeyWithCache,
+    apiKeyWithCache, builder,
     cache,
     keys, log,
     signing_key_cache_api_link,
@@ -28,9 +28,9 @@ export default class Database{
         await cl.disconnect()
     }
     public async connect():Promise<void>{
-        Logger.info("Connecting to DB...");
+        Logger.debug("Connecting to DB...");
         await this.client.connect()
-        Logger.info("Connected to DB");
+        Logger.debug("Connected to DB");
     }
     private hashPW(password:string):Promise<string>{
         return new Promise((resolve, reject) => {
@@ -547,12 +547,12 @@ export default class Database{
         return user;
     }
     public async disconnect():Promise<void>{
-        Logger.info("Disconnecting from DB...");
+        Logger.debug("Disconnecting from DB...");
         await this.client.end().catch(err => {
             Logger.error(`Failed to disconnect from DB ${err}`);
         });
         this.timeout.close()
-        Logger.info("Disconnected from DB");
+        Logger.debug("Disconnected from DB");
     }
 
 
@@ -806,5 +806,10 @@ export default class Database{
             Logger.error(`Failed to get audit log for cache ${cacheId} ${err}`);
             return [];
         })
+    }
+
+    public async getBuilderForCache(cacheId:number):Promise<Array<builder>>{
+
+        return []
     }
 }
