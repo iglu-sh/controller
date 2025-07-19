@@ -799,7 +799,7 @@ export default class Database{
     public async getAuditLogByCacheId(cacheId:number):Promise<Array<log>>{
         Logger.debug(`Getting audit log by cacheId=${cacheId}`);
         return await this.query(`
-            SELECT * FROM cache.logs WHERE cache_id = $1 ORDER BY timestamp DESC
+            SELECT * FROM cache.logs WHERE cache_id = $1 ORDER BY timestamp DESC 
         `, [cacheId]).then((res:QueryResult<log>)=>{
             return res.rows;
         }).catch((err)=>{

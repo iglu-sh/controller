@@ -165,7 +165,7 @@ export default function App(){
             </Card>
             <div className="grid grid-cols-2 gap-2">
                 <Card>
-                    <CardContent className="flex flex-col gap-4">
+                    <CardContent className="flex flex-col gap-4 overflow-x-auto">
                         <CardTitle>
                             Cache Information
                         </CardTitle>
@@ -184,10 +184,16 @@ export default function App(){
                         <CardTitle>
                             Recent Activity
                         </CardTitle>
-                        <div className="flex flex-col gap-2 h-50 max-h-50">
+                        <div className="flex flex-col gap-2 h-50 max-h-50 overflow-y-auto">
                             {
                                 cache?
-                                    <Activity log={cache.audit_log[0]!} /> :
+                                        cache.audit_log.map((log: log, index:number)=>{
+
+                                            return(
+                                                <Activity log={log} key={index} />
+                                            )
+                                        })
+                                     :
                                     null
                             }
                         </div>

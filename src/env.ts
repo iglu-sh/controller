@@ -30,6 +30,8 @@ export const env = createEnv({
       .optional()
       .default("MAGENTA"),
     AUTH_TRUST_HOST: z.enum(["true", "false"]).optional().default("false"),
+    DISABLE_BUILDER: z.enum(["true", "false"]).optional().default("false"),
+    NODE_PSK: z.string()
   },
 
   /**
@@ -39,7 +41,8 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
-    NEXT_PUBLIC_CACHE_URL: z.string()
+    NEXT_PUBLIC_CACHE_URL: z.string(),
+    NEXT_PUBLIC_DISABLE_BUILDER: z.enum(["true", "false"]),
   },
 
   /**
@@ -61,7 +64,10 @@ export const env = createEnv({
     LOGGER_PREFIX_COLOR: process.env.LOGGER_PREFIX_COLOR,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
     NEXT_PUBLIC_CACHE_URL: process.env.NEXT_PUBLIC_CACHE_URL,
-    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST
+    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
+    DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
+    NEXT_PUBLIC_DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
+    NODE_PSK: process.env.NODE_PSK,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
