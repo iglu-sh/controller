@@ -31,6 +31,7 @@ export const env = createEnv({
       .default("MAGENTA"),
     AUTH_TRUST_HOST: z.enum(["true", "false"]).optional().default("false"),
     DISABLE_BUILDER: z.enum(["true", "false"]).optional().default("false"),
+    REDIS_URL: z.string(),
     NODE_PSK: z.string()
   },
 
@@ -68,6 +69,7 @@ export const env = createEnv({
     DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
     NEXT_PUBLIC_DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
     NODE_PSK: process.env.NODE_PSK,
+    REDIS_URL: process.env.REDIS_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -1,5 +1,6 @@
 import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
+import {createClient} from "redis";
 import type {
     apiKeyWithCache, builder,
     cache,
@@ -11,6 +12,8 @@ import type {
 } from "@/types/db";
 import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
+import * as process from "node:process";
+import type {NodeChannelMessage} from "@iglu-sh/types/controller";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -182,6 +185,7 @@ export default class Database{
                 resource_name TEXT DEFAULT NULL,
                 updated_by uuid NULL REFERENCES cache.users(id) ON DELETE SET NULL
             );
+            
             COMMIT TRANSACTION;
         `)
 
@@ -195,6 +199,79 @@ export default class Database{
         await this.createAuditLog()
         Logger.debug('Database tables set up successfully');
 
+        // if the DISABLE_BUILDER environment variable is set to false, we can create a cron job to check the health of the nodes
+        console.log(process.env.DISABLE_BUILDERS)
+        if(!process.env.DISABLE_BUILDERS || process.env.DISABLE_BUILDERS === 'false'){
+            Logger.debug('Creating cron job for builder health check');
+
+            await this.client.query(`
+                SELECT * FROM cron.job WHERE jobname = 'healthcheck';
+            `).then(async (res)=>{
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                const result:{jobid:string}[] = res.rows
+                for(const row of result){
+                    Logger.debug(`Unscheduling cron job with id ${row.jobid}`);
+                    await this.query(`
+                        SELECT cron.unschedule(${row.jobid});
+                    `)
+                        .catch((e)=>{
+                            Logger.error(`Could not unschedule cron job with id ${row.jobid} ${e}`);
+                        })
+                }
+            })
+            // We run a cron job every 5 seconds
+            await this.query(`
+                SELECT cron.schedule('healthcheck','* * * * *', $$
+                    SELECT * FROM http((
+                       'GET',
+                       '${process.env.NEXT_PUBLIC_URL}/api/v1/node/healthcheck',
+                       http_headers('Authorization', '${process.env.NODE_PSK}'),
+                       NULL,
+                       NULL
+                    )::http_request); 
+                $$);
+            `)
+        }
+
+        // Redis Setup
+        // TODO: Move this out of here, wtf
+        if(!process.env.REDIS_URL){
+            return
+        }
+        // Deregister all nodes that may still be connected
+        const editor = createClient({
+            url: process.env.REDIS_URL
+        })
+        await editor.connect().catch((err:Error)=>{
+            Logger.error(`Failed to connect to Redis editor: ${err.message}`);
+            return;
+        })
+        const keys = await editor.keys('node:*').catch((err:Error)=>{
+            Logger.error(`Failed to get keys from Redis: ${err.message}`);
+            return [];
+        });
+
+        for(const key of keys){
+            const id = key.split(':')[1];
+            if(!id){
+                continue;
+            }
+            Logger.info(`Deregistering node ${id} from Redis`);
+            const deregisterMsg:NodeChannelMessage = {
+                type: 'deregister',
+                target: id,
+                sender: 'controller',
+                data: {}
+            }
+            await editor.publish('node', JSON.stringify(deregisterMsg)).catch((err:Error)=>{
+                Logger.error(`Failed to publish deregister message for node ${id}: ${err.message}`);
+            });
+
+            // Remove the node from Redis
+            await editor.del(key).catch((err:Error)=>{
+                Logger.error(`Failed to delete key ${key} from Redis: ${err.message}`);
+            });
+        }
 
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
         const res = await this.client.query('SELECT COUNT(*) FROM cache.users');
@@ -213,6 +290,7 @@ export default class Database{
             true, // must_change_password
             true // show_setup
         )
+
     }
     private async createAuditLog(){
         Logger.debug('Creating procedures for audit logging');

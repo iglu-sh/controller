@@ -4,12 +4,18 @@
  */
 import "@/env.ts";
 import Database from "@/lib/db";
+import redis from "redis";
+import {buildDeregisterMsg} from "@/lib/redisHelper";
+import Logger from "@iglu-sh/logger";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+    allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', "10.0.0.72", "*"],
+};
 const db = new Database()
 void db.connect().then(async ()=>{
     await db.setupDB()
     await db.disconnect()
+
 })
 export default config;
