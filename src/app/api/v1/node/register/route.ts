@@ -14,10 +14,14 @@ with the following body:
 }
 */
 import type {NextRequest} from "next/server";
-import type {nodeRegistrationRequest} from "@/types/api";
+import type {nodeRegistrationRequest, nodeRegistrationResponse} from "@iglu-sh/types/scheduler";
+import {z} from "zod";
+import * as crypto from "node:crypto";
+import Logger from "@iglu-sh/logger";
 
 export async function POST(request:NextRequest){
-    if(!request.headers.has("Authentication") || request.headers.get("Authentication") !== process.env.NODE_PSK){
+    Logger.debug(`Received request to register node`);
+    if(!request.headers.has("Authorization") || request.headers.get("Authorization") !== process.env.NODE_PSK){
         return new Response(JSON.stringify({message: "Unauthorized"}), {
             status: 401,
             headers: {
@@ -34,44 +38,41 @@ export async function POST(request:NextRequest){
         });
     }
     const body = await request.json() as Record<string, unknown>;
-    const mandatoryKeys = [
-        "node_name",
-        "node_psk",
-        "node_address",
-        "node_port",
-        "node_version",
-        "node_arch",
-        "node_os",
-        "node_max_jobs"
-    ]
-    for(const key of mandatoryKeys){
-        if(!body.hasOwnProperty(key)){
-            return new Response(JSON.stringify({message: "Bad Request", cause: `Missing key ${key} in body`}), {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            });
-        }
-        if(typeof body[key] !== "string" && key !== "node_port" && key !== "node_max_jobs"){
-            return new Response(JSON.stringify({message: "Bad Request", cause: `Key ${key} must be a string`}), {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            });
-        }
-        if((key === "node_port" || key === "node_max_jobs") && typeof body[key] !== "number"){
-            return new Response(JSON.stringify({message: "Bad Request", cause: `Key ${key} must be a number`}), {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            });
-        }
+    // Create a zod schema from the nodeRegistrationRequest type
+    const nodeRegistrationSchema = z.object({
+        node_name: z.string(),
+        node_psk: z.string(),
+        node_address: z.string(),
+        node_port: z.number(),
+        node_version: z.string(),
+        node_arch: z.string(),
+        node_os: z.string(),
+        node_max_jobs: z.number()
+    });
+    // Validate the body against the schema
+    const parsedBody = nodeRegistrationSchema.safeParse(body);
+    if(!parsedBody.success){
+        return new Response(JSON.stringify({message: "Bad Request", cause: parsedBody.error.message}), {
+            status: 400,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
     }
+    const nodeData:nodeRegistrationRequest = parsedBody.data;
 
-    const registrationRequest:nodeRegistrationRequest = body as nodeRegistrationRequest;
+    // Generate a random node ID
+    const nodeId = crypto.randomUUID();
 
-
+    // Send the nodeId to the node
+    const response:nodeRegistrationResponse = {
+        node_id: nodeId
+    }
+    Logger.info(`Node ${nodeData.node_name} registered with ID ${nodeId}`);
+    return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: {
+            "Content-Type": "application/json"
+        }
+    });
 }

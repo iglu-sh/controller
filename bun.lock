@@ -5,6 +5,7 @@
       "name": "better-controller",
       "dependencies": {
         "@iglu-sh/logger": "^1.0.4",
+        "@iglu-sh/types": "^0.1.1",
         "@radix-ui/react-avatar": "^1.1.10",
         "@radix-ui/react-checkbox": "^1.3.2",
         "@radix-ui/react-dialog": "^1.1.14",
@@ -107,6 +108,8 @@
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
     "@iglu-sh/logger": ["@iglu-sh/logger@1.0.4", "", { "dependencies": { "@types/chalk": "^2.2.4", "@types/node": "^24.0.10", "chalk": "^5.4.1" }, "peerDependencies": { "typescript": "^5.8.3" } }, "sha512-uytsgoQzBLtS7O6ok+WirJvjSRfmCsO1TyAllr6Z8MEuy1X2dhdLBWPwT7goUpc83I74FzVkAD6Smeck0pKVfg=="],
+
+    "@iglu-sh/types": ["@iglu-sh/types@0.1.1", "", { "peerDependencies": { "typescript": "^5.8.3" } }, "sha512-GV8JtA4tn1XvOgwjtp0CdRnjVI5XbyQ0UTMfj2BL2IN/kgzFWQmXA1xkNOYHj9ti9dIUqWzpmTdAmlQBC8Bjjw=="],
 
     "@img/sharp-darwin-arm64": ["@img/sharp-darwin-arm64@0.34.2", "", { "optionalDependencies": { "@img/sharp-libvips-darwin-arm64": "1.1.0" }, "os": "darwin", "cpu": "arm64" }, "sha512-OfXHZPppddivUJnqyKoi5YVeHRkkNE2zUFT2gbpKxp/JZCFYEYubnMg+gOp6lWfasPrTS+KPosKqdI+ELYVDtg=="],
 
