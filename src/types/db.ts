@@ -20,7 +20,7 @@ export type builder = {
     name: string,
     description: string,
     enabled: boolean,
-    trigger: string,
+    trigger: 'manual' | 'cron' | 'webhook',
     cron: string,
     webhookURL: string,
 }

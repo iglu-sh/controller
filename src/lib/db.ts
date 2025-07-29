@@ -2,8 +2,8 @@ import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
 import {createClient} from "redis";
 import type {
-    apiKeyWithCache, builder,
-    cache,
+    apiKeyWithCache,
+    cache, git_configs,
     keys, log,
     signing_key_cache_api_link,
     User,
@@ -14,6 +14,7 @@ import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
 import * as process from "node:process";
 import type {NodeChannelMessage} from "@iglu-sh/types/controller";
+import type {combinedBuilder, builder, buildoptions, cachixconfigs, public_signing_keys} from "@iglu-sh/types/core/db";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -62,7 +63,7 @@ export default class Database{
         Logger.debug('Setting up database tables');
 
         // Sets up the required frontend tables
-        await this.client.query(`
+        await this.query(`
             START TRANSACTION;
             CREATE TABLE IF NOT EXISTS cache.users (
                 id uuid NOT NULL UNIQUE PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,6 +88,7 @@ export default class Database{
                 enabled bool NOT NULL,
                 trigger TEXT,
                 cron TEXT,
+                arch TEXT NOT NULL DEFAULT 'x86_64',
                 webhookURL TEXT NOT NULL UNIQUE
             );
             CREATE TABLE IF NOT EXISTS cache.git_configs (
@@ -191,12 +193,13 @@ export default class Database{
 
         // Modifies the existing cache tables to include a userID
         // User ID may be null if the cache is not owned by a user (yet)
-        await this.client.query(`
+        await this.query(`
             ALTER TABLE cache.keys ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT keys_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
         `)
 
         // Set up the Audit Logging
-        await this.createAuditLog()
+        // FIXME: This throws an error: tuple concurrently updated
+        //await this.createAuditLog()
         Logger.debug('Database tables set up successfully');
 
         // if the DISABLE_BUILDER environment variable is set to false, we can create a cron job to check the health of the nodes
@@ -204,7 +207,7 @@ export default class Database{
         if(!process.env.DISABLE_BUILDERS || process.env.DISABLE_BUILDERS === 'false'){
             Logger.debug('Creating cron job for builder health check');
 
-            await this.client.query(`
+            await this.query(`
                 SELECT * FROM cron.job WHERE jobname = 'healthcheck';
             `).then(async (res)=>{
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -246,6 +249,8 @@ export default class Database{
             Logger.error(`Failed to connect to Redis editor: ${err.message}`);
             return;
         })
+
+        // Clean all "lingering" nodes still connected
         const keys = await editor.keys('node:*').catch((err:Error)=>{
             Logger.error(`Failed to get keys from Redis: ${err.message}`);
             return [];
@@ -273,8 +278,35 @@ export default class Database{
             });
         }
 
+        // Clear all build configs from redis
+        Logger.debug('Clearing all build configs from Redis');
+        await editor.del('build_config_*').catch((err:Error)=>{
+            Logger.error(`Failed to delete build configs from Redis: ${err.message}`);
+        })
+
+        // Query all build configs and add them to Redis
+        Logger.debug('Adding all build configs to Redis');
+        const buildConfigs:QueryResult<combinedBuilder> = await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options
+            FROM cache.builder cb
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+        `) as QueryResult<combinedBuilder>
+
+        for(const row of buildConfigs.rows){
+            Logger.debug(`Adding build config for builder ${row.builder.id} to Redis`);
+            const key = `build_config_${row.builder.id}`;
+            await editor.json.set(key, '$', row).catch((err:Error)=>{
+                Logger.error(`Failed to add build config for builder ${row.builder.id} to Redis: ${err.message}`);
+            });
+        }
+
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
-        const res = await this.client.query('SELECT COUNT(*) FROM cache.users');
+        const res = await this.query('SELECT COUNT(*) FROM cache.users');
         //eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if(res.rows?.[0]?.count > 0){
             return
@@ -294,7 +326,7 @@ export default class Database{
     }
     private async createAuditLog(){
         Logger.debug('Creating procedures for audit logging');
-        await this.client.query(`
+        await this.query(`
             START TRANSACTION;
             -- Cache Audit Logging
             CREATE OR REPLACE FUNCTION cache.cache_logging() RETURNS TRIGGER AS $$
@@ -539,7 +571,7 @@ export default class Database{
         })
     }
     public async getUserByNameOrEmail(username:string, email:string):Promise<User | null>{
-        return await this.client.query(`
+        return await this.query(`
             SELECT * FROM cache.users WHERE username = $1 OR email = $2
         `, [username, email])
             .then((res)=>{
@@ -555,7 +587,7 @@ export default class Database{
     }
     public async createUser(username:string, email:string, password:string, is_admin:boolean, is_verified:boolean, must_change_password:boolean, show_setup = false):Promise<User>{
         const hashedPW = await this.hashPW(password)
-        return await this.client.query(`
+        return await this.query(`
             INSERT INTO cache.users (username, email, password, created_at, updated_at, last_login, is_admin, is_verified, must_change_password, show_oob)
                 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)    
             RETURNING *
@@ -580,7 +612,7 @@ export default class Database{
     public async resetPassword(userID: string, password:string){
         Logger.debug(`Resetting password for user ${userID}`);
         const hashedPW = await this.hashPW(password);
-        return await this.client.query(`
+        return await this.query(`
             UPDATE cache.users SET password = $1, updated_at = $2, must_change_password = false WHERE id = $3
         `, [hashedPW, new Date(), userID])
             .then((res)=>{
@@ -598,7 +630,7 @@ export default class Database{
 
     public async authenticateUser(username:string, password:string):Promise<User | null>{
         Logger.info(`Authenticating user ${username}`);
-        const user = await this.client.query(`
+        const user = await this.query(`
             SELECT * FROM cache.users WHERE username = $1 
         `, [username]).then((res)=>{
             return res.rows[0] as User;
@@ -619,7 +651,7 @@ export default class Database{
         Logger.info(`User ${username} authenticated successfully`);
 
         // Update last login time
-        await this.client.query(`
+        await this.query(`
             UPDATE cache.users SET last_login = $1 WHERE id = $2
         `, [new Date(), user.id]);
         return user;
@@ -636,7 +668,7 @@ export default class Database{
 
     public async getUserById(userId:string):Promise<User | null>{
         Logger.debug(`Getting user ${userId}`);
-        return await this.client.query(`
+        return await this.query(`
             SELECT * FROM cache.users WHERE id = $1;
         `, [userId])
             .then((res)=>{
@@ -654,7 +686,7 @@ export default class Database{
     // Mainly used for the OOB experience, and it should not be used outside of that
     // It does require a lot of processing power, so it should only be used when necessary
     public async getEverything():Promise<Array<xTheEverythingType>>{
-        return await this.client.query(`
+        return await this.query(`
             SELECT row_to_json(ca.*) as cache,
                    (
                        SELECT json_agg(
@@ -707,7 +739,7 @@ export default class Database{
     }
 
     public async addUserToCache(cacheId:number, userId:string):Promise<boolean>{
-        return await this.client.query(`
+        return await this.query(`
             INSERT INTO cache.cache_user_link (cache_id, user_id)
             VALUES ($1, $2)
         `, [cacheId, userId])
@@ -721,7 +753,7 @@ export default class Database{
     }
 
     public async removeOOBFlag(userId:string):Promise<boolean>{
-        return await this.client.query(`
+        return await this.query(`
             UPDATE cache.users SET show_oob = false WHERE id = $1
         `, [userId])
             .then((res)=>{
@@ -737,7 +769,7 @@ export default class Database{
     }
 
     public async getCachesByUserId(userId:string):Promise<Array<cache>>{
-        return await this.client.query(`
+        return await this.query(`
             SELECT DISTINCT ca.* FROM cache.caches as ca
                 INNER JOIN cache.cache_user_link as cul ON ca.id = cul.cache_id
         `).then((res)=>{
@@ -753,7 +785,7 @@ export default class Database{
         })
     }
     public async addUserToApiKey(apiKeyId:number, userId:string):Promise<boolean>{
-        return await this.client.query(`
+        return await this.query(`
             UPDATE cache.keys SET user_id = $1 WHERE id = $2
         `, [userId, apiKeyId])
             .then(()=>{
@@ -766,7 +798,7 @@ export default class Database{
     }
 
     public async getApiKeysByUserId(userId:string):Promise<Array<apiKeyWithCache>>{
-        return await this.client.query(`
+        return await this.query(`
             SELECT row_to_json(keys.*) as key, array_agg(row_to_json(ck.*)) as cacheKeyLinks, array_agg(row_to_json(ca.*)) as caches FROM cache.keys
               INNER JOIN cache.cache_key as ck ON keys.id = ck.key_id
               INNER JOIN cache.caches as ca ON ck.cache_id = ca.id
@@ -782,7 +814,7 @@ export default class Database{
     }
 
     public async getAllUsers():Promise<Array<User>>{
-        return await this.client.query(`
+        return await this.query(`
             SELECT * FROM cache.users
         `).then((res)=>{
             return res.rows.map((row:User)=>{
@@ -798,20 +830,20 @@ export default class Database{
     }
 
     public async linkApiKeyToCache(apiKeyId:number, cacheId:number):Promise<boolean>{
-        await this.client.query(`
+        await this.query(`
             INSERT INTO cache.cache_key (cache_id, key_id)
                 VALUES ($1, $2)
         `, [cacheId, apiKeyId])
         // Get all the public signing keys for this API key and link them to the cache
         Logger.debug(`Linking API key ${apiKeyId} to cache ${cacheId}`);
-        const signingKeys = await this.client.query(`
+        const signingKeys = await this.query(`
             SELECT DISTINCT signing_key_cache_api_link.signing_key_id FROM cache.signing_key_cache_api_link
         `)
             .then((res)=>{
                 return res.rows as signing_key_cache_api_link[]
             })
         for(const link of signingKeys){
-            await this.client.query(`
+            await this.query(`
                 INSERT INTO cache.signing_key_cache_api_link (cache_id, key_id, signing_key_id)
                     VALUES ($1, $2, $3)
             `, [cacheId, apiKeyId, link.signing_key_id])
@@ -887,7 +919,172 @@ export default class Database{
     }
 
     public async getBuilderForCache(cacheId:number):Promise<Array<builder>>{
-
         return []
     }
+
+    public async createBuilder(builder:combinedBuilder):Promise<combinedBuilder>{
+        Logger.debug(`Creating builder for cache ${builder.builder.cache_id}`);
+
+        // First, create the builder in itself
+        const returnObject:combinedBuilder = builder
+        await this.query(`
+        INSERT INTO cache.builder (cache_id, name, description, enabled, trigger, cron, arch, webhookURL)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        `, [
+            builder.builder.cache_id,
+            builder.builder.name,
+            builder.builder.description,
+            builder.builder.enabled,
+            builder.builder.trigger,
+            builder.builder.cron,
+            builder.builder.preferred_arch,
+            builder.builder.webhookURL
+        ]).then((res)=>{
+            if(res.rows.length === 0){
+                throw new Error("Failed to create builder");
+            }
+            returnObject.builder = res.rows[0] as builder;
+        })
+
+        // Then, create the git config
+        await this.query(`
+            INSERT INTO cache.git_configs (builder_id, repository, branch, gitUsername, gitKey, requiresAuth, noClone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        `, [
+            returnObject.builder.id,
+            builder.git_config.repository,
+            builder.git_config.branch,
+            builder.git_config.gitusername,
+            builder.git_config.gitkey,
+            builder.git_config.requiresauth,
+            builder.git_config.noclone
+        ]).then((res)=>{
+            if(res.rows.length === 0){
+                throw new Error("Failed to create git config");
+            }
+            returnObject.git_config = res.rows[0] as git_configs;
+        })
+
+        // Then, create the build options
+        await this.query(`
+            INSERT INTO cache.buildOptions (builder_id, cores, maxJobs, keep_going, extraArgs, substituters, parallelBuilds, command)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        `, [
+            returnObject.builder.id,
+            builder.build_options.cores,
+            builder.build_options.maxjobs,
+            builder.build_options.keep_going,
+            builder.build_options.extraargs,
+            builder.build_options.substituters,
+            false,
+            builder.build_options.command
+        ]).then((res)=>{
+            if(res.rows.length === 0){
+                throw new Error("Failed to create build options");
+            }
+            returnObject.build_options = res.rows[0] as buildoptions;
+        })
+
+        // Finally, create the cachix config
+        await this.query(`
+            INSERT INTO cache.cachixConfigs (builder_id, push, target, apiKey, signingKey, buildOutputDir)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [
+            returnObject.builder.id,
+            builder.cachix_config.push,
+            builder.cachix_config.target,
+            builder.cachix_config.apikey,
+            builder.cachix_config.signingkey,
+            builder.cachix_config.buildoutpudir
+        ]).then((res)=>{
+            if(res.rows.length === 0){
+                throw new Error("Failed to create cachix config");
+            }
+            returnObject.cachix_config = res.rows[0] as cachixconfigs;
+        })
+        return returnObject
+    }
+
+
+
+    public async appendApiKey(cache:number, key:string):Promise<keys> {
+        //Hash the key
+        const hasher = new Bun.CryptoHasher("sha512");
+        hasher.update(key)
+        const hash = hasher.digest("hex")
+        const result:QueryResult<keys> = await this.query(`
+            INSERT INTO cache.keys (name, description, hash) VALUES ($1, $2, $3)
+                RETURNING *;
+        `, ["Starting Key", "With love from the Iglu team", hash]) as QueryResult<keys>
+        if(result.rows.length ===  0 || !result.rows[0]?.id){
+            throw new Error('Error whilst creating key')
+        }
+
+        const keyID = result.rows[0].id
+
+        await this.query(`
+            INSERT INTO cache.cache_key (cache_id, key_id) VALUES ($1, $2)
+        `, [cache, keyID])
+
+        return result.rows[0]
+    }
+
+    public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean):Promise<void>{
+        const hashedKey = new Bun.CryptoHasher("sha512")
+        hashedKey.update(apiKey)
+        let hash = hashedKey.digest("hex")
+
+        //This is a workaround to be able to just pass a hash to the query later down the line
+        if(bypassHasher){
+            hash = apiKey
+        }
+
+        //Get the API key ID
+        const keyID = await this.query(`
+            SELECT * FROM cache.keys WHERE hash = $1;
+        `, [hash]).then((res:QueryResult<keys>)=>{
+            if(!res.rows[0] || res.rows.length === 0){
+                throw new Error('API Key not found')
+            }
+            return res.rows[0].id
+        })
+        //Check if this key cache api key link already exists
+        let publicKeyId;
+        const isInDb = await this.query(`
+                SELECT * FROM cache.signing_key_cache_api_link WHERE cache_id = $1 AND key_id = $2
+            `, [id, keyID]).then((res:QueryResult<signing_key_cache_api_link>)=>{
+            if(res.rows.length > 0 && res.rows[0]){
+                publicKeyId = res.rows[0].signing_key_id
+                return true
+            }
+            return false
+        })
+
+        //Depending on the result we need to either update the key or insert a new one
+        if(isInDb){
+            //Update the key with the id we got
+            await this.query(`
+                UPDATE cache.public_signing_keys SET key = $1 WHERE id = $2
+            `, [key, publicKeyId])
+        }
+        else{
+            //Insert the key into the public signing keys table
+            const signingKey:QueryResult<public_signing_keys> = await this.query(`
+                INSERT INTO cache.public_signing_keys (name, key, description) 
+                VALUES ($1, $2, $3)
+                RETURNING *
+            `, ["Cachix Key", key, "Key uploaded by Cachix"]) as QueryResult<public_signing_keys>
+
+            //Insert the key into the signing key cache api link table
+            await this.query(`
+                INSERT INTO cache.signing_key_cache_api_link (cache_id, key_id, signing_key_id) 
+                VALUES ($1, $2, $3)
+        `, [id, keyID, signingKey.rows[0]!.id])
+        }
+    }
+
 }

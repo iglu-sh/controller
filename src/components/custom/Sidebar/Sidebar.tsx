@@ -12,8 +12,8 @@ import CacheDropdown from "@/components/custom/Sidebar/CacheDropdown";
 import {Avatar, AvatarFallback} from "@/components/ui/avatar";
 import Link from "next/link";
 import {Button} from "@/components/ui/button";
-import GearIcon from "next/dist/client/components/react-dev-overlay/ui/icons/gear-icon";
 import {useSession} from "next-auth/react";
+import {Cog} from 'lucide-react'
 import {useEffect} from "react";
 import {useSearchParams} from "next/navigation";
 import {api} from "@/trpc/react";
@@ -85,13 +85,13 @@ export default function AppSidebar(){
                     </Link>
                     <Link href={`/app/admin?cacheID=${cacheID}`} className="w-full font-bold text-lg">
                         <Button variant="ghost" className="w-full justify-start">
-                            <GearIcon />
+                            <Cog />
                             Admin Center
                         </Button>
                     </Link>
                     <Link href={`/app/settings?cacheID=${cacheID}`} className="w-full font-bold text-lg">
                         <Button variant="ghost" className="w-full justify-start">
-                            <GearIcon />
+                            <Cog />
                             Cache Settings
                         </Button>
                     </Link>
