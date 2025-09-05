@@ -2,7 +2,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import GeneralTab from "@/components/custom/builder/create/generalTab";
 import {useEffect, useState} from "react";
-import type {combinedBuilder} from "@iglu-sh/types/core/db";
+import type {combinedBuilder, uuid} from "@iglu-sh/types/core/db";
 import BuildOptionsTab from "@/components/custom/builder/create/buildOptionsTab";
 import Link from "next/link";
 import {builderSchema} from '@/types/schemas'
@@ -15,6 +15,7 @@ import {useSearchParams} from "next/navigation";
 export default function CreatePage(){
     const [loading, setLoading] = useState<boolean>(false);
     const params = useSearchParams()
+    const randomUUID = crypto.randomUUID() as uuid;
     const [config, setConfig] = useState<combinedBuilder>({
         builder: {
             id: -1,
@@ -25,7 +26,8 @@ export default function CreatePage(){
             trigger: '',
             cron: '',
             webhookURL: 'https://example.com/webhook',
-            preferred_arch: ''
+            preferred_arch: '',
+            user_id: randomUUID
         },
         cachix_config: {
             id: -1,

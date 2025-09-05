@@ -2,13 +2,20 @@ import {
     adminProcedure,
     createTRPCRouter, protectedProcedure,
 } from "@/server/api/trpc";
-import type {User, uuid, xTheEverythingType} from "@/types/db";
+import type {
+    User,
+    uuid,
+    xTheEverythingType,
+    builder as builderType
+} from "@/types/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import {z} from "zod";
 import {builderSchema} from "@/types/schemas";
 import type {combinedBuilder} from "@iglu-sh/types/core/db";
 import generateCachixKey from "@/lib/generateCachixKey";
+import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
+import {getRedisClient} from "@/lib/redisHelper";
 
 export const builder = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
@@ -45,7 +52,7 @@ export const builder = createTRPCRouter({
                 // Add everything to the input object
                 input.cachix_config.signingkey = keyPair.private;
                 input.cachix_config.apikey = plaintextKey;
-
+                input.builder.user_id = ctx.session.user.session_user.id
                 // Generate a webhook url
                 input.builder.webhookURL = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 
@@ -57,4 +64,38 @@ export const builder = createTRPCRouter({
             }
             return Promise.resolve(createdBuilder);
         }),
+    getAllBuilders: protectedProcedure
+        .input(z.object({cache: z.number()}))
+        .query(async ({ctx, input}):Promise<builderType[]>=>{
+            const db = new Database()
+            let builders:builderType[];
+            try{
+                await db.connect()
+                builders = await db.getBuilderForCache(input.cache) as builderType[]
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                return Promise.reject(e as Error);
+            }
+            return Promise.resolve(builders);
+        }),
+    getRegisteredNodes: adminProcedure
+        .query(async ({ctx}):Promise<nodeRegistrationRequest[]>=>{
+            const redis = await getRedisClient()
+            const keys = await redis.keys('node:*').catch((err:Error)=>{
+                Logger.error(`Failed to get keys from Redis: ${err.message}`);
+                return [];
+            });
+            const nodes:nodeRegistrationRequest[] = []
+            for(const key of keys){
+                const node = await redis.json.get(key) as nodeRegistrationRequest
+                if(node){
+                    nodes.push(node)
+                }
+            }
+            console.log(nodes)
+            return nodes
+        })
 });

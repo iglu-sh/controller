@@ -16,7 +16,8 @@ export const builderSchema = z.object({
             'armv7l',
             'i686',
             'riscv64'
-        ])
+        ]),
+        user_id: z.string().uuid()
     }),
     cachix_config: z.object({
         id: z.number(),
