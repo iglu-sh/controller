@@ -6,10 +6,11 @@ import {Button} from "@/components/ui/button";
 export default function AdminPage(){
     const nodes = api.builder.getRegisteredNodes.useQuery()
     const builders = api.builder.getAllBuilders.useQuery({cache: 1})
+    const sendTestJobMutation = api.builder.sendTestJob.useMutation()
     useEffect(()=>{
         console.log(nodes)
     }, [nodes.data])
-    function sendTestJob(nodeName:string){
+    function sendTestJob(nodeID:string){
 
     }
     return (
@@ -31,13 +32,14 @@ export default function AdminPage(){
                 <tbody className="">
                 {nodes.data?.map((node) => (
                     <tr key={node.node_name}>
+                        <td>{JSON.stringify(node)}</td>
                         <td>{node.node_name}</td>
                         <td>{node.node_address}</td>
                         <td>{node.node_port}</td>
                         <td>{node.node_os}</td>
                         <td>{node.node_arch}</td>
                         <td>{node.node_max_jobs}</td>
-                        <Button>Send Test Job</Button>
+                        <Button onClick={sendTestJob()}>Send Test Job</Button>
                     </tr>
                 ))}
                 </tbody>

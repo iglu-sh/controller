@@ -919,9 +919,37 @@ export default class Database{
     }
 
     public async getBuilderForCache(cacheId:number):Promise<Array<builder>>{
-        return []
+        Logger.debug(`Getting builders for cacheId=${cacheId}`);
+        return await this.query(`
+            SELECT * FROM cache.builder WHERE cache_id = $1
+        `, [cacheId]).then((res:QueryResult<builder>)=>{
+            return res.rows;
+        }).catch((err)=>{
+            Logger.error(`Failed to get builders for cache ${cacheId} ${err}`);
+            return [];
+        })
     }
-
+    public async getBuilderById(builderId:number):Promise<combinedBuilder | null>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options
+            FROM cache.builder cb
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+            WHERE cb.id = $1
+        `, [builderId]).then((res:QueryResult<combinedBuilder>)=>{
+            if(res.rows.length === 0){
+                return null;
+            }
+            return res.rows[0]!;
+        }).catch((err)=>{
+            Logger.error(`Failed to get builder by id ${builderId} ${err}`);
+            return null;
+        })
+    }
     public async createBuilder(builder:combinedBuilder):Promise<combinedBuilder>{
         Logger.debug(`Creating builder for cache ${builder.builder.cache_id}`);
 

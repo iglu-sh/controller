@@ -97,5 +97,26 @@ export const builder = createTRPCRouter({
             }
             console.log(nodes)
             return nodes
+        }),
+    sendTestJob: adminProcedure
+        .input(z.object({builderID: z.number()}))
+        .mutation(async ({ctx, input}):Promise<boolean>=>{
+            const db = new Database()
+            let builder:combinedBuilder;
+            try{
+                await db.connect()
+                const builderConfig = await db.getBuilderById(input.builderID)
+                if(!builderConfig){
+                    throw new Error(`Builder with ID ${input.builderID} not found`)
+                }
+                builder = builderConfig
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                return Promise.reject(e as Error);
+            }
+            return !!builder;
         })
 });
