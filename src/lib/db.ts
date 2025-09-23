@@ -203,7 +203,6 @@ export default class Database{
         Logger.debug('Database tables set up successfully');
 
         // if the DISABLE_BUILDER environment variable is set to false, we can create a cron job to check the health of the nodes
-        console.log(process.env.DISABLE_BUILDERS)
         if(!process.env.DISABLE_BUILDERS || process.env.DISABLE_BUILDERS === 'false'){
             Logger.debug('Creating cron job for builder health check');
 
