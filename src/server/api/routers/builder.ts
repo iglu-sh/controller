@@ -10,11 +10,12 @@ import type {
 } from "@/types/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
+import Redis from '@/lib/redis'
 import {z} from "zod";
 import {builderSchema} from "@/types/schemas";
 import type {combinedBuilder} from "@iglu-sh/types/core/db";
 import generateCachixKey from "@/lib/generateCachixKey";
-import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
+import type {NodeInfo, nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
 import {getRedisClient} from "@/lib/redisHelper";
 
 export const builder = createTRPCRouter({
@@ -82,21 +83,18 @@ export const builder = createTRPCRouter({
             return Promise.resolve(builders);
         }),
     getRegisteredNodes: adminProcedure
-        .query(async ({ctx}):Promise<nodeRegistrationRequest[]>=>{
-            const redis = await getRedisClient()
-            const keys = await redis.keys('node:*').catch((err:Error)=>{
-                Logger.error(`Failed to get keys from Redis: ${err.message}`);
-                return [];
-            });
-            const nodes:nodeRegistrationRequest[] = []
-            for(const key of keys){
-                const node = await redis.json.get(key) as nodeRegistrationRequest
-                if(node){
-                    nodes.push(node)
-                }
+        .query(async ({ctx}):Promise<NodeInfo[]>=>{
+            const redis = new Redis()
+            try{
+                const nodes = await redis.getConnectedNodes()
+                await redis.quit()
+                return nodes
             }
-            console.log(nodes)
-            return nodes
+            catch(e){
+                Logger.error(`Failed to get nodes from Redis: ${e}`);
+                await redis.quit()
+            }
+            return []
         }),
     sendTestJob: adminProcedure
         .input(z.object({builderID: z.number()}))

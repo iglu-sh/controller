@@ -15,7 +15,7 @@ import {useSearchParams} from "next/navigation";
 export default function CreatePage(){
     const [loading, setLoading] = useState<boolean>(false);
     const params = useSearchParams()
-    const randomUUID = crypto.randomUUID() as uuid;
+    const randomUUID = '' as uuid;
     const [config, setConfig] = useState<combinedBuilder>({
         builder: {
             id: -1,

@@ -29,19 +29,19 @@ export default function AdminPage(){
                     <th>Node Max Jobs</th>
                 </tr>
                 </thead>
-                <tbody className="">
-                {nodes.data?.map((node) => (
-                    <tr key={node.node_name}>
-                        <td>{JSON.stringify(node)}</td>
-                        <td>{node.node_name}</td>
-                        <td>{node.node_address}</td>
-                        <td>{node.node_port}</td>
-                        <td>{node.node_os}</td>
-                        <td>{node.node_arch}</td>
-                        <td>{node.node_max_jobs}</td>
-                        <Button onClick={sendTestJob()}>Send Test Job</Button>
-                    </tr>
-                ))}
+                <tbody className="table">
+                {
+                    nodes.data?.map((node)=>{
+                        return(
+                            <tr key={node.id}>
+                                <td>{node.id}</td>
+                                <td>{node.node_name}</td>
+                                <td>{node.node_port}</td>
+                                <td>{node.node_os}</td>
+                            </tr>
+                        )
+                    })
+                }
                 </tbody>
             </table>
         </div>
