@@ -53,7 +53,7 @@ export const builder = createTRPCRouter({
                 // Add everything to the input object
                 input.cachix_config.signingkey = keyPair.private;
                 input.cachix_config.apikey = plaintextKey;
-                input.builder.user_id = ctx.session.user.session_user.id
+
                 // Generate a webhook url
                 input.builder.webhookURL = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 

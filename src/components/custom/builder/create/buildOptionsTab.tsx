@@ -37,6 +37,7 @@ export default function BuildOptionsTab({config, setConfig}:{config:combinedBuil
                                 !config.build_options.command.includes('nix build') &&
                                 !config.build_options.command.includes('nix-build')
                             }
+                            value={config.build_options.command} placeholder="nix build .#myPackage"
                             />
                         </div>
                     </div>

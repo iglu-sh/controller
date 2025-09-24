@@ -34,6 +34,7 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                         }
                                     })
                                 }}
+                                   value={config.builder.name}
                             ></Input>
                         </div>
                         <div />
@@ -49,7 +50,9 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                         description: e.target.value
                                     }
                                 })
-                            }}/>
+                            }}
+                              value={config.builder.description}
+                            />
                         </div>
                         <div className="grid grid-cols-6 col-span-2 gap-2">
                             <div className="flex flex-col col-span-2">
@@ -60,15 +63,17 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                     ...config,
                                     builder: {
                                         ...config.builder,
-                                        preferred_arch: val
+                                        arch: val
                                     }
-                                })}}>
+                                })}}
+                                    value={config.builder.arch}
+                                >
                                     <SelectTrigger>
-                                        {config.builder.preferred_arch == '' ? 'Select architecture' : config.builder.preferred_arch}
+                                        {config.builder.arch == '' ? 'Select architecture' : config.builder.arch}
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="x86_64">x86_64</SelectItem>
-                                        <SelectItem value="aarch64">aarch64</SelectItem>
+                                        <SelectItem value="x86_64-linux">x86_64-linux</SelectItem>
+                                        <SelectItem value="aarch64-linux">aarch64-linux</SelectItem>
                                         <SelectItem value="armv7l">armv7l</SelectItem>
                                         <SelectItem value="i686">i686</SelectItem>
                                         <SelectItem value="riscv64">riscv64</SelectItem>
@@ -90,7 +95,8 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                             enabled: val
                                         }
                                     })
-                                }}/>
+                                }}
+                                />
                             </div>
                             <div className="grid grid-cols-2 col-span-3 gap-2 justify-between">
                                 <div className="flex flex-col w-full">
@@ -105,7 +111,9 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                                 trigger: val
                                             }
                                         })
-                                    }}>
+                                    }}
+                                        value={config.builder.trigger}
+                                    >
                                         <SelectTrigger className="w-full">
                                             {
                                                 config.builder.trigger == '' ? 'Select trigger' : config.builder.trigger
@@ -155,7 +163,9 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                         repository: e.target.value
                                     }
                                 })
-                            }} />
+                            }}
+                            value={config.git_config.repository}
+                            />
                         </div>
                         <div className="flex flex-col gap-1">
                             <div className="font-bold">
@@ -169,7 +179,9 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                         branch: e.target.value
                                     }
                                 })
-                            }} />
+                            }}
+                            value={config.git_config.branch}
+                            />
                         </div>
                         <div className="flex flex-row justify-between">
                             <div className="font-bold">
@@ -183,7 +195,8 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                         requiresauth: e
                                     }
                                 })
-                            }} />
+                            }}
+                            />
                         </div>
                         <div />
                         {
@@ -203,6 +216,7 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                                         }
                                                     })
                                             }} aria-invalid={config.git_config.gitusername === ''}
+                                            value={config.git_config.gitusername}
                                         />
                                     </div>
                                     <div className="flex flex-col gap-1">
@@ -219,6 +233,7 @@ export default function GeneralTab({config, setConfig}:{config:combinedBuilder, 
                                                     }
                                                 })
                                             }} aria-invalid={config.git_config.gitkey === ''}
+                                            value={config.git_config.gitkey}
                                         />
                                     </div>
                                 </div>

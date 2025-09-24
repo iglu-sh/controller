@@ -3,7 +3,7 @@ import type { NodeInfo } from "@iglu-sh/types/scheduler";
 import {createClient, type RedisClientType} from "redis";
 import Logger from "@iglu-sh/logger";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler/communication";
-import type {BuildChannelMessage, BuildQueueMessage} from "@iglu-sh/types/controller";
+import type {arch, BuildChannelMessage, BuildQueueMessage} from "@iglu-sh/types/controller";
 import type {combinedBuilder} from "@iglu-sh/types/core/db";
 
 export default class Redis{
@@ -38,8 +38,30 @@ export default class Redis{
         return nodes;
     }
     public async getBuildByID(buildID:string):Promise<combinedBuilder | null>{
-        const builder = await this.redisClient.json.get(`builder:${buildID}`) as combinedBuilder
+        const builder = await this.redisClient.json.get(`build_config_${buildID}`) as combinedBuilder
         return builder ? builder : null
+    }
+    public async getQueueLength():Promise<number>{
+        const length = await this.redisClient.lLen('build_queue').catch((err:Error)=>{
+            Logger.error(`Failed to get queue length from Redis: ${err.message}`);
+        });
+        return length ?? 0
+    }
+    public async getQueue():Promise<Array<{published_at:number, job:BuildChannelMessage}>>{
+        const queue = await this.redisClient.lRange('build_queue', 0, -1)
+        return queue ?? []
+    }
+    public async removeItemFromQueue(queueId:string):Promise<void>{
+        const queue = await this.getQueue()
+        const item = queue.find((item)=>item.job.data.job_id === queueId) as {published_at:number, job:BuildChannelMessage} | undefined
+        if(!item){
+            throw new Error(`Item with ID ${queueId} not found in queue`);
+        }
+        // Remove the item from the queue
+        await this.redisClient.lRem('build_queue', 1, JSON.stringify(item)).catch((err:Error)=>{
+            Logger.error(`Failed to remove item from queue in Redis: ${err.message}`);
+        })
+        Logger.debug(`Removed item with ID ${queueId} from queue`);
     }
 
     /*
@@ -59,16 +81,14 @@ export default class Redis{
 
         // Get the builder from Redis to see if it exists
         const builder = await this.getBuildByID(builderID)
-
         if(!builder){
             Logger.error(`Builder with ID ${builderID} does not exist`);
             throw new Error(`Builder with ID ${builderID} does not exist`);
         }
 
-        //FIXME: Fix linter errors here
         // Check if one node supports the buildconfig's architecture
         const supported = nodes.find((node)=>{
-            return node.arch.includes(builder.builder.arch)
+            return node.node_arch.includes(builder.builder.arch as arch)
         })
 
         if(!supported){
@@ -86,12 +106,19 @@ export default class Redis{
             target: null,
             data: {
                 type: "add",
-                builder_id: builder.builder.id,
+                builder_id: builder.builder.id.toString(),
                 job_id: jobID,
-                arch: builder.builder.arch
+                target: null,
+                arch: builder.builder.arch as arch
             }
         }
-        await this.redisClient.publish('node', JSON.stringify(message))
+        // Add to the queue list in Redis
+        await this.redisClient.lPush('build_queue', JSON.stringify({
+            "published_at": Date.now(),
+            "job": message
+        }))
+
+        await this.redisClient.publish('build', JSON.stringify(message))
     }
 
     /*
@@ -101,7 +128,7 @@ export default class Redis{
     * The jobID is the ID of the builder to send.
     * Careful: This function does not check if the request is authenticated / authorized, this has to be done before calling this function.
     * */
-    public async sendBuildJobToNode(nodeID:string, jobID:string, builderID:string):Promise<void>{
+    public async respondToBuildClaim(nodeID:string, jobID:string, builderID:string, result:"approved" | "rejected"):Promise<void>{
         // First, check if the node and builder exist
         const node = await this.redisClient.json.get(`node:${nodeID}`) as nodeRegistrationRequest
         if(!node){
@@ -121,7 +148,7 @@ export default class Redis{
                 type: "claim_response",
                 builder_id: builder.builder.id.toString(),
                 job_id: jobID,
-                result: "approved"
+                result: result
             }
         }
         await this.redisClient.publish('build', JSON.stringify(message))

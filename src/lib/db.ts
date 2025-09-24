@@ -232,6 +232,15 @@ export default class Database{
                        NULL
                     )::http_request); 
                 $$);
+                SELECT cron.schedule('redisTasks','* * * * *', $$
+                    SELECT * FROM http((
+                       'GET',
+                       '${process.env.NEXT_PUBLIC_URL}/api/v1/tasks/redis',
+                       ARRAY[http_header('Authorization', '${process.env.NODE_PSK}')],
+                       NULL,
+                       NULL
+                    )::http_request); 
+                $$);
             `)
         }
 
@@ -304,6 +313,7 @@ export default class Database{
             });
         }
 
+        Logger.info(`Added ${buildConfigs.rows.length} build configs to Redis`);
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
         const res = await this.query('SELECT COUNT(*) FROM cache.users');
         //eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -955,8 +965,8 @@ export default class Database{
         // First, create the builder in itself
         const returnObject:combinedBuilder = builder
         await this.query(`
-        INSERT INTO cache.builder (cache_id, name, description, enabled, trigger, cron, arch, webhookURL, user_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO cache.builder (cache_id, name, description, enabled, trigger, cron, arch, webhookURL)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         `, [
             builder.builder.cache_id,
@@ -965,9 +975,8 @@ export default class Database{
             builder.builder.enabled,
             builder.builder.trigger,
             builder.builder.cron,
-            builder.builder.preferred_arch,
+            builder.builder.arch,
             builder.builder.webhookURL,
-            builder.builder.user_id
         ]).then((res)=>{
             if(res.rows.length === 0){
                 throw new Error("Failed to create builder");

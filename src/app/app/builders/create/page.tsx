@@ -26,8 +26,7 @@ export default function CreatePage(){
             trigger: '',
             cron: '',
             webhookURL: 'https://example.com/webhook',
-            preferred_arch: '',
-            user_id: randomUUID
+            arch: '',
         },
         cachix_config: {
             id: -1,

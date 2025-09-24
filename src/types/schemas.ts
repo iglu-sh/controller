@@ -10,14 +10,15 @@ export const builderSchema = z.object({
         trigger: z.enum(['manual', 'cron', 'webhook']),
         cron: z.string().optional(),
         webhookURL: z.string().url().optional(),
-        preferred_arch: z.enum([
-            'x86_64',
-            'aarch64',
+        arch: z.enum([
+            'x86_64-linux',
+            'aarch64-linux',
             'armv7l',
             'i686',
-            'riscv64'
-        ]),
-        user_id: z.string().uuid()
+            'riscv64',
+            "aarch64-darwin",
+            "x86_64-darwin"
+        ])
     }),
     cachix_config: z.object({
         id: z.number(),
