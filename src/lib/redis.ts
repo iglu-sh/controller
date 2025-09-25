@@ -20,7 +20,7 @@ export default class Redis{
     }
     public async getConnectedNodes():Promise<NodeInfo[]>{
         Logger.debug("Getting Registered Nodes from Redis");
-        const keys = await this.redisClient.keys('node:*').catch((err:Error)=>{
+        const keys = await this.redisClient.keys('node:*:info').catch((err:Error)=>{
             Logger.error(`Failed to get keys from Redis: ${err.message}`);
             return [];
         });
@@ -48,7 +48,11 @@ export default class Redis{
         return length ?? 0
     }
     public async getQueue():Promise<Array<{published_at:number, job:BuildChannelMessage}>>{
-        const queue = await this.redisClient.lRange('build_queue', 0, -1)
+        const queue = await this.redisClient.lRange('build_queue', 0, -1).then((res:string[])=>{
+            return res.map((item:string)=>{
+                return JSON.parse(item) as {published_at:number, job:BuildChannelMessage}
+            })
+        })
         return queue ?? []
     }
     public async removeItemFromQueue(queueId:string):Promise<void>{

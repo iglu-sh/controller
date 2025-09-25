@@ -259,7 +259,7 @@ export default class Database{
         })
 
         // Clean all "lingering" nodes still connected
-        const keys = await editor.keys('node:*').catch((err:Error)=>{
+        const keys = await editor.keys('node:*:info').catch((err:Error)=>{
             Logger.error(`Failed to get keys from Redis: ${err.message}`);
             return [];
         });
@@ -284,6 +284,12 @@ export default class Database{
             await editor.del(key).catch((err:Error)=>{
                 Logger.error(`Failed to delete key ${key} from Redis: ${err.message}`);
             });
+            await editor.del(`node:${id}:current_builds`).catch((err:Error)=>{
+                Logger.error(`Failed to delete current builds for node ${id} from Redis: ${err.message}`);
+            })
+            await editor.del(`node:${id}:queued_builds`).catch((err:Error)=>{
+                Logger.error(`Failed to delete queued builds for node ${id} from Redis: ${err.message}`);
+            })
         }
 
         // Clear all build configs from redis
