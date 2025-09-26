@@ -1,6 +1,6 @@
 
 /*
-This endpoint is used to register a new builder node to this controller. It will send a registration request to this endpoint
+This endpoint is used to register a new builder node to this controller. The node will send a registration request to this endpoint
 with the following body:
 {
   node_name: string, // The name of the node (randomly generated or set by the user)

@@ -57,7 +57,7 @@ export default class Redis{
     }
     public async removeItemFromQueue(queueId:string):Promise<void>{
         const queue = await this.getQueue()
-        const item = queue.find((item)=>item.job.data.job_id === queueId) as {published_at:number, job:BuildChannelMessage} | undefined
+        const item = queue.find((item)=>(item.job.data as BuildQueueMessage).job_id === queueId) as {published_at:number, job:BuildChannelMessage} | undefined
         if(!item){
             throw new Error(`Item with ID ${queueId} not found in queue`);
         }
@@ -157,8 +157,31 @@ export default class Redis{
         }
         await this.redisClient.publish('build', JSON.stringify(message))
     }
+    public async getNodeInfo(nodeID:string):Promise<NodeInfo> {
+        const node = await this.redisClient.json.get(`node:${nodeID}:info`) as nodeRegistrationRequest
+        if(!node){
+            throw new Error(`Node with ID ${nodeID} does not exist`);
+        }
+        return {
+            ...node,
+            id: nodeID
+        } as NodeInfo
+    }
+    public async awardJobToNode(nodeID:string, jobID:string):Promise<void>{
+        // First, check if the job is still in the queue
+        const queue = await this.getQueue()
+        const job = queue.find((item)=>(item.job.data as BuildQueueMessage).job_id === jobID)
+        if(!job){
+            throw new Error(`Job with ID ${jobID} is not in the queue (anymore)`);
+        }
+        // Found the job, remove it from the queue
+        await this.removeItemFromQueue(jobID)
 
+        // Add the job to the node's queued builds
+        await this.respondToBuildClaim(nodeID, jobID, (job.job.data as BuildQueueMessage).builder_id, "approved")
+    }
     public async quit(){
         await this.redisClient.quit()
     }
+
 }
