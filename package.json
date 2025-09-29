@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@iglu-sh/logger": "^1.0.4",
-    "@iglu-sh/types": "^0.1.12",
+    "@iglu-sh/types": "^0.1.13",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -62,7 +62,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^20.19.17",
-    "@types/react": "^19.1.13",
+    "@types/react": "^19.1.14",
     "@types/react-dom": "^19.1.9",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.4",
