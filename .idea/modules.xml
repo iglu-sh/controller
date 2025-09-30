@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/controller.iml" filepath="$PROJECT_DIR$/.idea/controller.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../iglu/.idea/iglu.iml" filepath="$PROJECT_DIR$/../iglu/.idea/iglu.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../iglu/scheduler/.idea/scheduler.iml" filepath="$PROJECT_DIR$/../iglu/scheduler/.idea/scheduler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../types/.idea/types.iml" filepath="$PROJECT_DIR$/../types/.idea/types.iml" />
+    </modules>
+  </component>
+</project>
