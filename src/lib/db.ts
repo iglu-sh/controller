@@ -65,6 +65,25 @@ export default class Database{
         // Sets up the required frontend tables
         await this.query(`
             START TRANSACTION;
+            CREATE SCHEMA IF NOT EXISTS cache;
+            CREATE TABLE IF NOT EXISTS cache.caches (
+                id SERIAL PRIMARY KEY,
+                githubUsername TEXT,
+                isPublic BOOLEAN,
+                name TEXT,
+                permission TEXT,
+                preferredCompressionMethod TEXT,
+                uri TEXT,
+                priority INTEGER DEFAULT 40
+            );
+            CREATE TABLE IF NOT EXISTS cache.keys(
+                id serial constraint keys_pk primary key,
+                name text not null,
+                hash text not null,
+                description text,
+                created_at timestamp default now() not null,
+                updated_at timestamp default now() not null
+            );
             CREATE TABLE IF NOT EXISTS cache.users (
                 id uuid NOT NULL UNIQUE PRIMARY KEY DEFAULT gen_random_uuid(),
                 username TEXT NOT NULL,
