@@ -12,6 +12,7 @@ import Logger from "@iglu-sh/logger";
 const config = {
     allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', "10.0.0.72", "*"],
 };
+// Skip DB setup if building
 if (process.env.SKIP_ENV_VALIDATION !== 'true'){
   const db = new Database()
   void db.connect().then(async ()=>{
