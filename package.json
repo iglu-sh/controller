@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun --bun next build",
+    "build": "SKIP_ENV_VALIDATION=true bun --bun next build",
     "check": "bun --bun run next lint && tsc --noEmit",
     "dev": "bun --bun next dev --turbo -H 0.0.0.0",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -39,7 +39,6 @@
     "@types/bun": "^1.2.22",
     "@types/pg": "^8.15.5",
     "bcryptjs": "^3.0.2",
-    "bun": "^1.2.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookies-next": "^6.1.0",
