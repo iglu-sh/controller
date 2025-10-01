@@ -15,6 +15,7 @@ import type {cacheCreationObject} from "@/types/frontend";
 import * as process from "node:process";
 import type {NodeChannelMessage} from "@iglu-sh/types/controller";
 import type {combinedBuilder, builder, buildoptions, cachixconfigs, public_signing_keys} from "@iglu-sh/types/core/db";
+import {sleepSync} from "bun";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -62,28 +63,29 @@ export default class Database{
         // Sets up all the necessary tables for the application
         Logger.debug('Setting up database tables');
 
+        // Check if cache schema exists
+        let cacheExists = false;
+
+        while (!cacheExists){
+          const res = await this.query(`
+            SELECT EXISTS (
+               SELECT FROM information_schema.tables 
+               WHERE  table_schema = 'cache'
+               AND    table_name   = 'caches'
+            );
+          `)
+          cacheExists = res.rows[0].exists
+          Logger.warn("Cache does not exist! Please deploy a Cache! Waiting for Cache to be initialized...")
+          if(!cacheExists){
+            this.timeout.close()
+            sleepSync(5000)
+          }
+        }
+        this.timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
+
         // Sets up the required frontend tables
         await this.query(`
             START TRANSACTION;
-            CREATE SCHEMA IF NOT EXISTS cache;
-            CREATE TABLE IF NOT EXISTS cache.caches (
-                id SERIAL PRIMARY KEY,
-                githubUsername TEXT,
-                isPublic BOOLEAN,
-                name TEXT,
-                permission TEXT,
-                preferredCompressionMethod TEXT,
-                uri TEXT,
-                priority INTEGER DEFAULT 40
-            );
-            CREATE TABLE IF NOT EXISTS cache.keys(
-                id serial constraint keys_pk primary key,
-                name text not null,
-                hash text not null,
-                description text,
-                created_at timestamp default now() not null,
-                updated_at timestamp default now() not null
-            );
             CREATE TABLE IF NOT EXISTS cache.users (
                 id uuid NOT NULL UNIQUE PRIMARY KEY DEFAULT gen_random_uuid(),
                 username TEXT NOT NULL,
