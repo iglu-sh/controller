@@ -1,5 +1,11 @@
 ---
 services:
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+
   postgres:
     image: ghcr.io/iglu-sh/postgres:latest
     restart: unless-stopped
@@ -30,4 +36,5 @@ services:
       - ./dev/repos:/tmp/repos
     depends_on:
       - postgres
+      - redis
 
