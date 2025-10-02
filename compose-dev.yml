@@ -1,5 +1,11 @@
 ---
 services:
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+
   postgres:
     image: ghcr.io/iglu-sh/postgres:latest
     restart: unless-stopped
@@ -13,12 +19,7 @@ services:
       - 5432:5432
     volumes:
       - ./dev/postgres:/var/lib/postgresql/data
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
-    environment:
-      - REDIS_PASSWORD=verysecret
+
   cache:
     image: ghcr.io/iglu-sh/iglu-cache:latest
     restart: unless-stopped
@@ -27,7 +28,6 @@ services:
       POSTGRES_USER: iglu
       POSTGRES_HOST: postgres
       LOG_LEVEL: DEBUG
-      LOG_JSON: false
       PROM_ENABLE: true
       CACHE_ROOT_DOMAIN: http://localhost
     ports:
@@ -37,3 +37,4 @@ services:
     depends_on:
       - postgres
       - redis
+

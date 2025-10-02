@@ -218,6 +218,23 @@ export default class Database{
             ALTER TABLE cache.keys ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT keys_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
         `)
 
+        // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
+        const res = await this.query('SELECT COUNT(*) FROM cache.users');
+        //eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if(res.rows?.[0]?.count == 0){
+        Logger.debug('No users found, creating default admin user');
+          // Create a default admin user
+          await this.createUser(
+              "admin", // username
+              "admin@admin.com", // default email
+              "admin", // default password
+              true, // is_admin
+              true, // is_verified
+              true, // must_change_password
+              true // show_setup
+          )
+        }
+
         // Set up the Audit Logging
         // FIXME: This throws an error: tuple concurrently updated
         //await this.createAuditLog()
@@ -276,6 +293,7 @@ export default class Database{
         })
         await editor.connect().catch((err:Error)=>{
             Logger.error(`Failed to connect to Redis editor: ${err.message}`);
+            // TODO: Wait for Redis insted of return else the setup does not finish compleatly
             return;
         })
 
@@ -341,24 +359,6 @@ export default class Database{
         }
 
         Logger.info(`Added ${buildConfigs.rows.length} build configs to Redis`);
-        // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
-        const res = await this.query('SELECT COUNT(*) FROM cache.users');
-        //eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if(res.rows?.[0]?.count > 0){
-            return
-        }
-        Logger.debug('No users found, creating default admin user');
-        // Create a default admin user
-        await this.createUser(
-            "admin", // username
-            "admin@admin.com", // default email
-            "admin", // default password
-            true, // is_admin
-            true, // is_verified
-            true, // must_change_password
-            true // show_setup
-        )
-
     }
     private async createAuditLog(){
         Logger.debug('Creating procedures for audit logging');
