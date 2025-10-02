@@ -7,6 +7,7 @@ import {z} from "zod";
 export async function POST(request:NextRequest){
     // Check for the X-IGLU-NODE-ID header
     if(!request.headers.has("X-IGLU-NODE-ID")){
+        Logger.debug("Task request failed with missing X-IGLU-NODE-ID header");
         return new Response(JSON.stringify({message: "Unauthorized"}), {
             status: 401,
             headers: {
@@ -19,7 +20,6 @@ export async function POST(request:NextRequest){
     const redis = new Redis()
     try{
         const nodeInfo = await redis.getNodeInfo(node_id);
-
         // Get the node authorization header
         const authHeader = request.headers.get("Authorization");
         if(!authHeader || authHeader !== nodeInfo.node_psk){

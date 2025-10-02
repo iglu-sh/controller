@@ -29,7 +29,7 @@ export default class Redis{
             const node = await this.redisClient.json.get(key) as nodeRegistrationRequest
             const nodeToPush =  {
                 ...node,
-                id:key.replace("node:",""),
+                id:key.replace("node:","").replace(":info","")
             } as NodeInfo
             if(node){
                 nodes.push(nodeToPush)
@@ -134,7 +134,7 @@ export default class Redis{
     * */
     public async respondToBuildClaim(nodeID:string, jobID:string, builderID:string, result:"approved" | "rejected"):Promise<void>{
         // First, check if the node and builder exist
-        const node = await this.redisClient.json.get(`node:${nodeID}`) as nodeRegistrationRequest
+        const node = await this.redisClient.json.get(`node:${nodeID}:info`) as nodeRegistrationRequest
         if(!node){
             throw new Error(`Node with ID ${nodeID} does not exist`);
         }
