@@ -3,6 +3,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
+import {BuilderOverview} from "@/app/app/builders/components/builder";
 
 export default function Builders(){
     // Get the current cacheID from the query params
@@ -27,18 +28,23 @@ export default function Builders(){
                     <Button>Create new Builder</Button>
                 </Link>
             </div>
+            {
+                cacheID ?
+                    <div className="flex flex-col gap-2">
+                        <Tabs defaultValue="builder" className="w-full">
+                            <TabsList className="w-full">
+                                <TabsTrigger value="builder">Builder</TabsTrigger>
+                                <TabsTrigger value="queue">Queue</TabsTrigger>
+                                <TabsTrigger value="nodes">Nodes</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="builder"><BuilderOverview cacheID={parseInt(cacheID)} /></TabsContent>
 
-            <div className="flex flex-col gap-2">
-                <Tabs defaultValue="account" className="w-full">
-                    <TabsList className="w-full">
-                        <TabsTrigger value="account">Overview</TabsTrigger>
-                        <TabsTrigger value="password">Queue</TabsTrigger>
-                        <TabsTrigger value="password">Nodes</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="account">Make changes to your account here.</TabsContent>
-                    <TabsContent value="password">Change your password here.</TabsContent>
-                </Tabs>
-            </div>
+                            <TabsContent value="queue">Change your password here.</TabsContent>
+                            <TabsContent value="nodes">Change your password here.</TabsContent>
+                        </Tabs>
+                    </div>
+                    : <div className="flex flex-col gap-2">Loading</div>
+            }
         </div>
     )
 }

@@ -22,8 +22,11 @@ export async function POST(request:NextRequest){
         const nodeInfo = await redis.getNodeInfo(node_id);
         // Get the node authorization header
         const authHeader = request.headers.get("Authorization");
+        console.log(authHeader, nodeInfo);
         if(!authHeader || authHeader !== nodeInfo.node_psk){
+            Logger.debug("Job application invalid. Cause: Invalid authorization (node_psk or authHeader missing)")
             await redis.quit()
+
             return new Response(JSON.stringify({
                 message: "Unauthorized",
                 cause: "Invalid PSK"
@@ -56,6 +59,7 @@ export async function POST(request:NextRequest){
         body = schema.parse(await request.json());
     }
     catch(err){
+        Logger.debug("Job application invalid. Cause: Invalid JSON schema");
         return new Response(JSON.stringify({
             message: "Bad Request",
             cause: "Invalid body"
