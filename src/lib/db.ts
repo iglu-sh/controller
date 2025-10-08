@@ -805,14 +805,18 @@ export default class Database{
     }
 
     public async getCachesByUserId(userId:string):Promise<Array<cache>>{
-        return await this.query(`
-            SELECT DISTINCT ca.* FROM cache.caches as ca
-                INNER JOIN cache.cache_user_link as cul ON ca.id = cul.cache_id
-        `).then((res)=>{
-            return res.rows as cache[]
-        }).catch((err)=>{
-            Logger.error(`Failed to get caches for user ${userId} ${err}`);
-            return [];
+        return new Promise(async (resolve, reject):Promise<cache[]>=>{
+            await this.query(`
+                SELECT DISTINCT ca.* FROM cache.caches as ca
+                    INNER JOIN cache.cache_user_link as cul ON ca.id = cul.cache_id
+                `)
+                .then((res)=>{
+                    resolve(res.rows as cache[])
+                })
+                .catch((err)=>{
+                        Logger.error(`Failed to get caches for user ${userId} ${err}`);
+                        resolve([]);
+                    })
         })
     }
     public async getCacheById(cacheId:number):Promise<cache | null>{
@@ -955,6 +959,7 @@ export default class Database{
     }
 
     public async getBuilderForCache(cacheId:number):Promise<Array<builder>>{
+        console.log("HELP ME GOD PLEASE")
         Logger.debug(`Getting builders for cacheId=${cacheId}`);
         return await this.query(`
             SELECT * FROM cache.builder WHERE cache_id = $1

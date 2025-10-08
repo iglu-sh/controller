@@ -67,16 +67,17 @@ export const builder = createTRPCRouter({
         }),
     getAllBuilders: protectedProcedure
         .input(z.object({cache: z.number()}))
-        .query(async ({ctx, input}):Promise<builderType[] | string>=>{
+        .query(async ({ctx, input}):Promise<builderType[]>=>{
             const db = new Database()
             // Check if this user is allowed to access the cache provided
-            const cacheForUser = await db.getCachesByUserId(ctx.session.user.session_user.id)
+            const cacheForUser = await db.getCachesByUserId(ctx.session.user.session_user.id))
+            console.log(cacheForUser)
             const cachesAsNums = cacheForUser.map((cache)=>{
                 return cache.id
             })
             console.log(cachesAsNums)
             if(!cachesAsNums.includes(input.cache)){
-                return Promise.reject(`User not allowed to access cache with ID ${input.cache}`)
+                return []
             }
             Logger.debug("Fetching Builders")
             let builders:builderType[];
@@ -88,9 +89,9 @@ export const builder = createTRPCRouter({
             catch(e){
                 Logger.error(`Failed to connect to DB ${e}`);
                 await db.disconnect()
-                return Promise.reject(e as Error);
+                return []
             }
-            return Promise.resolve(builders);
+            return builders;
         }),
     getRegisteredNodes: adminProcedure
         .query(async ({ctx}):Promise<NodeInfo[]>=>{
