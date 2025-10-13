@@ -68,10 +68,12 @@ export const builder = createTRPCRouter({
     getAllBuilders: protectedProcedure
         .input(z.object({cache: z.number()}))
         .query(async ({ctx, input}):Promise<builderType[]>=>{
+            console.log("Input:", input)
             const db = new Database()
+            Logger.debug("Checking if user is allowed to access cache")
             // Check if this user is allowed to access the cache provided
-            const cacheForUser = await db.getCachesByUserId(ctx.session.user.session_user.id))
-            console.log(cacheForUser)
+            const cacheForUser = await db.getCachesByUserId(ctx.session.user.id)
+            console.log('GOT caches for user', cacheForUser)
             const cachesAsNums = cacheForUser.map((cache)=>{
                 return cache.id
             })
