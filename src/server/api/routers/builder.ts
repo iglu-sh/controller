@@ -7,7 +7,7 @@ import type {
     uuid,
     xTheEverythingType,
     builder as builderType
-} from "@/types/db";
+} from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import Redis from '@/lib/redis'
@@ -57,7 +57,7 @@ export const builder = createTRPCRouter({
                 // Generate a webhook url
                 input.builder.webhookURL = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 
-                createdBuilder = await db.createBuilder(input as combinedBuilder)
+                createdBuilder = await db.createBuilder(input as unknown as combinedBuilder)
             }
             catch(e){
                 Logger.error(`Failed to connect to DB ${e}`);

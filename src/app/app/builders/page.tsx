@@ -4,6 +4,7 @@ import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {BuilderOverview} from "@/app/app/builders/components/builder";
+import Queue from "@/app/app/builders/components/queue";
 
 export default function Builders(){
     // Get the current cacheID from the query params
@@ -39,7 +40,7 @@ export default function Builders(){
                             </TabsList>
                             <TabsContent value="builder"><BuilderOverview cacheID={parseInt(cacheID)} /></TabsContent>
 
-                            <TabsContent value="queue">Change your password here.</TabsContent>
+                            <TabsContent value="queue"><Queue cacheID={parseInt(cacheID)} /></TabsContent>
                             <TabsContent value="nodes">Change your password here.</TabsContent>
                         </Tabs>
                     </div>
