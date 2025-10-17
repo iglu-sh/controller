@@ -14,7 +14,14 @@ import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
 import * as process from "node:process";
 import type {NodeChannelMessage} from "@iglu-sh/types/controller";
-import type {combinedBuilder, builder, buildoptions, cachixconfigs, public_signing_keys} from "@iglu-sh/types/core/db";
+import type {
+    combinedBuilder,
+    builder,
+    buildoptions,
+    cachixconfigs,
+    public_signing_keys,
+    builder_runs
+} from "@iglu-sh/types/core/db";
 import {sleepSync} from "bun";
 export default class Database{
     private client: Client
@@ -812,7 +819,6 @@ export default class Database{
                 WHERE cul.user_id = $1
                 `, [userId])
                 .then((res:QueryResult<cache>)=>{
-                    console.log(res.rows);
                     return res.rows as Array<cache>;
                 })
                 .catch((err)=>{
@@ -1158,4 +1164,33 @@ export default class Database{
         }
     }
 
+    public async getBuilderFromWebhook(hook:string):Promise<builder | null>{
+        return await this.query(`
+            SELECT * FROM cache.builder WHERE webhookurl = concat('/api/v1/webhooks/builder/', $1::cstring)
+        `, [hook])
+            .then((res)=>{
+                if(res.rows.length === 0){
+                    return null
+                }
+                return res.rows[0] as builder;
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get builder from webhook ${hook} ${err}`);
+                return null;
+            })
+    }
+
+    public async createNewBuildJob(builder_id:number){
+        return await this.query(`
+            INSERT INTO cache.builder_runs (builder_id, status, started_at, ended_at, gitcommit, duration, log)
+            VALUES ($1, $2, $3, null, 'unknown', '0', null)
+            RETURNING *
+        `, [builder_id, 'queued', new Date()])
+            .then((res)=>{
+                if(res.rows.length === 0){
+                    throw new Error("Failed to create build job");
+                }
+                return res.rows[0] as builder_runs;
+            })
+    }
 }
