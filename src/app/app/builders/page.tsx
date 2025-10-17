@@ -39,8 +39,8 @@ export default function Builders(){
                             </TabsList>
                             <TabsContent value="builder"><BuilderOverview cacheID={parseInt(cacheID)} /></TabsContent>
 
-                            <TabsContent value="queue">Change your password here.</TabsContent>
-                            <TabsContent value="nodes">Change your password here.</TabsContent>
+                            <TabsContent value="queue"></TabsContent>
+                            <TabsContent value="nodes"></TabsContent>
                         </Tabs>
                     </div>
                     : <div className="flex flex-col gap-2">Loading</div>
