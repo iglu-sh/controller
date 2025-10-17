@@ -71,16 +71,8 @@ export const builder = createTRPCRouter({
             console.log("Input:", input)
             const db = new Database()
             Logger.debug("Checking if user is allowed to access cache")
-            // Check if this user is allowed to access the cache provided
-            const cacheForUser = await db.getCachesByUserId(ctx.session.user.id)
-            console.log('GOT caches for user', cacheForUser)
-            const cachesAsNums = cacheForUser.map((cache)=>{
-                return cache.id
-            })
-            console.log(cachesAsNums)
-            if(!cachesAsNums.includes(input.cache)){
-                return []
-            }
+            // TODO: Validate if the user is allowed to access the cache
+
             Logger.debug("Fetching Builders")
             let builders:builderType[];
             try{

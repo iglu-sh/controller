@@ -1,24 +1,25 @@
 import type {ColumnDef} from "@tanstack/react-table";
-import type {combinedBuilder} from "@iglu-sh/types/core/db";
+import type {builder, combinedBuilder} from "@iglu-sh/types/core/db";
+import {Button} from "@/components/ui/button";
+import Link from "next/link";
 
-export const columns:ColumnDef<combinedBuilder>[] = [
+export const columns:ColumnDef<builder>[] = [
     {
-        accessorKey: "builder.id",
-        header: "ID",
-    },
-    {
-        accessorKey: "builder.name",
+        accessorKey: "name",
         header: "Name",
     },
     {
-        accessorKey: "builder.arch",
+        accessorKey: "arch",
         header: "Arch",
     },
     {
-        accessorKey: "builder.id",
-        cell: (id)=> {
+        accessorKey: "id",
+        header: "Actions",
+        cell: ({row}) => {
             return <div>
-                {id.getValue() as string}
+                <Link href={row.original.webhookURL ?? `none`} aria-disabled={!row.original.webhookURL}><Button variant="default" id={`trigger-btn-${row.original.id}`}>Trigger Build</Button></Link>
+                <Link href={`/app/builders/edit/${row.original.id}`}><Button variant="secondary" id={`edit-btn-${row.original.id}`} className="ml-2">Details</Button></Link>
+                <Button variant="destructive" id={`delete-btn-${row.original.id}`} className="ml-2">Delete</Button>
             </div>
         }
     }
