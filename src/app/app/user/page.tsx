@@ -61,7 +61,7 @@ export default async function UserPage(){
 
             {cache.map(c => {
               return (
-                <Card key={c.id} className="bg-(--secondary)">
+                <Card key={c.id} className="bg-(--secondary)/25">
                   <CardHeader>
                     <CardTitle className="text-bold text-xl">{c.uri}</CardTitle>
                   </CardHeader>

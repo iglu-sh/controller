@@ -46,7 +46,7 @@ export default function App(){
                     </p>
                 </div>
                 <div className="flex flex-row gap-2">
-                    <Badge className="border-green-500 bg-transparent rounded-full">
+                    <Badge className="border-green-500 bg-transparent rounded-full text-green-500">
                         Healthy
                     </Badge>
                     <Button onClick={()=>{window.location.reload()}}>
