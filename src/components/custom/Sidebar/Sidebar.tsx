@@ -14,7 +14,7 @@ import Link from "next/link";
 import {Button} from "@/components/ui/button";
 import {useSession} from "next-auth/react";
 import {Cog} from 'lucide-react'
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useSearchParams} from "next/navigation";
 import {api} from "@/trpc/react";
 export default function AppSidebar(){
@@ -23,6 +23,8 @@ export default function AppSidebar(){
     const params = useSearchParams()
     const cache = api.cache.byUser.useQuery()
     const cacheID = params.get("cacheID")
+
+    const [dropdownContent, setDropdownContent] = useState(<div>Loading Caches...</div>)
 
     // Fetch all the caches this user has access to
     // This will be used to populate the CacheDropdown component
@@ -34,6 +36,15 @@ export default function AppSidebar(){
             }
         }
     }, [params]);
+
+    useEffect(() => {
+      if(cache && cache.data){
+        setDropdownContent(
+          <CacheDropdown caches={cache.data}/>
+        )
+      }
+    }, [cache.data])
+
     return(
         <Sidebar>
             <SidebarHeader className="flex flex-col gap-4">
@@ -41,15 +52,7 @@ export default function AppSidebar(){
                     <Image src={"/logo.jpeg"} alt={"Iglu Logo"} width={48} height={48} className="rounded-md" />
                     <h1 className="text-2xl font-bold">Iglu</h1>
                 </div>
-                {
-                    cache && cache.data ? (
-                        <CacheDropdown caches={cache.data} />
-                    ) : (
-                        <div>
-                            Loading Caches...
-                        </div>
-                    )
-                }
+                {dropdownContent}
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
