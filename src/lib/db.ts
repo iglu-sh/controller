@@ -158,7 +158,8 @@ export default class Database{
                 ended_at timestamp,
                 gitCommit text not null,
                 duration interval not null, -- in seconds
-                log text
+                log text,
+                node_id text
             );
             create table if not exists cache.builder_user_link
                 (
@@ -247,9 +248,9 @@ export default class Database{
         //await this.createAuditLog()
         Logger.debug('Database tables set up successfully');
 
-        // if the DISABLE_BUILDER environment variable is set to false, we can create a cron job to check the health of the nodes
+        // if the DISABLE_BUILDER environment variable is set to false, we can create a cron update to check the health of the nodes
         if(!process.env.DISABLE_BUILDERS || process.env.DISABLE_BUILDERS === 'false'){
-            Logger.debug('Creating cron job for builder health check');
+            Logger.debug('Creating cron update for builder health check');
 
             await this.query(`
                 SELECT * FROM cron.job WHERE jobname = 'healthcheck';
@@ -266,7 +267,7 @@ export default class Database{
                         })
                 }
             })
-            // We run a cron job every 5 seconds
+            // We run a cron update every 5 seconds
             await this.query(`
                 SELECT cron.schedule('healthcheck','* * * * *', $$
                     SELECT * FROM http((
@@ -1185,12 +1186,58 @@ export default class Database{
             INSERT INTO cache.builder_runs (builder_id, status, started_at, ended_at, gitcommit, duration, log)
             VALUES ($1, $2, $3, null, 'unknown', '0', null)
             RETURNING *
-        `, [builder_id, 'queued', new Date()])
+        `, [builder_id, 'created', new Date()])
             .then((res)=>{
                 if(res.rows.length === 0){
-                    throw new Error("Failed to create build job");
+                    throw new Error("Failed to create build update");
                 }
                 return res.rows[0] as builder_runs;
             })
     }
+    public async updateJob(job_id:number, new_object:builder_runs):Promise<void>{
+        try{
+            await this.getJob(job_id)
+        }
+        catch(e){
+            Logger.error(`Failed to get job with id ${job_id}`)
+            Logger.debug(`${e}`)
+            return
+        }
+
+        // Update the update
+        await this.query(`
+            UPDATE cache.builder_runs br SET
+                status = $1,
+                started_at = $2,
+                ended_at = $3,
+                gitcommit = $4,
+                duration = $5,
+                log = $6
+            WHERE br.id = $7
+        `, [new_object.status, new_object.started_at, new_object.ended_at, new_object.gitcommit, new_object.duration, new_object.log, job_id])
+    }
+    public async getJob(job_id:number):Promise<builder_runs>{
+        return await this.query(`
+            SELECT * FROM cache.builder_runs WHERE id = $1
+        `, [job_id]).then((res)=>{
+            if(res.rows.length === 0 || !res.rows[0]){
+                throw new Error("Job not found");
+            }
+            return res.rows[0] as builder_runs;
+        })
+    }
+
+    public async getAllBuilders():Promise<QueryResult<combinedBuilder>>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options
+            FROM cache.builder cb
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+        `) as QueryResult<combinedBuilder>
+    }
+
 }

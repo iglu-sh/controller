@@ -74,12 +74,12 @@ export async function POST(request:NextRequest){
     // Everything looks good, now wait for a random time between 0 and 1 second to avoid double builds
     await new Promise((resolve)=>setTimeout(resolve, Math.random() * 1000));
 
-    // Give the job to the node
+    // Give the update to the node
     await redis.awardJobToNode(node_id, (body.data as BuildClaimMessage).job_id).catch((err:Error)=>{
         Logger.error(`Failed to award job to node: ${err.message}`);
         return new Response(JSON.stringify({
             message: "Internal Server Error",
-            cause: "Failed to award job to node"
+            cause: "Failed to award update to node"
         }), {
             status: 410,
             headers: {

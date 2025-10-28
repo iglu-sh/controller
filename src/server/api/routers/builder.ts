@@ -58,6 +58,12 @@ export const builder = createTRPCRouter({
                 input.builder.webhookURL = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 
                 createdBuilder = await db.createBuilder(input as unknown as combinedBuilder)
+                // Add the builder to redis
+                const redis = new Redis()
+                await redis.refreshBuilders().catch(async (err:Error)=>{
+                    Logger.error(`Failed to refresh builders in Redis: ${err.message}`);
+                })
+                await redis.quit()
             }
             catch(e){
                 Logger.error(`Failed to connect to DB ${e}`);

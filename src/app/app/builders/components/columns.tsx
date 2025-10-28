@@ -53,6 +53,6 @@ export const columns:ColumnDef<builder>[] = [
 
 
 export const queueColumns:ColumnDef<queueEntry> = {
-    accessorKey: "job.id",
+    accessorKey: "update.id",
     header: "ID",
 }

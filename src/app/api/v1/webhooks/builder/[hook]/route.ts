@@ -13,7 +13,7 @@ export async function GET(request:NextRequest, {params}:{params:{hook:string}}){
         await db.connect()
         builder = await db.getBuilderFromWebhook(hook)
         if(builder){
-            // Create a new build job in the database
+            // Create a new build update in the database
             buildJob = await db.createNewBuildJob(builder.id)
         }
         await db.disconnect()
