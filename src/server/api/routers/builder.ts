@@ -2,11 +2,11 @@ import {
     adminProcedure,
     createTRPCRouter, protectedProcedure,
 } from "@/server/api/trpc";
-import type {
-    User,
-    uuid,
-    xTheEverythingType,
-    builder as builderType
+import {
+    type User,
+    type uuid,
+    type xTheEverythingType,
+    type builder as builderType, dbQueueEntry
 } from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
@@ -106,6 +106,23 @@ export const builder = createTRPCRouter({
                 await redis.quit()
             }
             return []
+        }),
+    getQueue: protectedProcedure
+        .input(z.object({id: z.number()}))
+        .query(async ({ctx, input}):Promise<dbQueueEntry[]>=>{
+            const db = new Database()
+            let builders:dbQueueEntry[] = [];
+            try{
+                await db.connect()
+                builders = await db.getQueueForCache(input.id)
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                return []
+            }
+            return builders
         }),
     sendTestJob: adminProcedure
         .input(z.object({builderID: z.number()}))

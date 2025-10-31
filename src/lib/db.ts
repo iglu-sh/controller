@@ -20,7 +20,8 @@ import type {
     buildoptions,
     cachixconfigs,
     public_signing_keys,
-    builder_runs
+    builder_runs,
+    dbQueueEntry
 } from "@iglu-sh/types/core/db";
 import {sleepSync} from "bun";
 export default class Database{
@@ -1240,4 +1241,40 @@ export default class Database{
         `) as QueryResult<combinedBuilder>
     }
 
+    public async getBuildersForCache(cacheID:number):Promise<QueryResult<combinedBuilder>>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options
+            FROM cache.builder cb
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+            WHERE cb.cache_id = $1 
+        `, [cacheID]) as QueryResult<combinedBuilder>
+    }
+    public async getQueueForCache(input:number):Promise<Array<dbQueueEntry>>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options,
+                   row_to_json(br.*) as builder_run
+            FROM cache.builder_runs br
+                   INNER JOIN cache.builder cb ON cb.id = br.builder_id
+                   INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                   INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                   INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+            WHERE cb.cache_id = $1
+                AND br.status != 'finished' OR br.status != 'failed'
+        `, [input])
+            .then((res)=>{
+                return res.rows as Array<dbQueueEntry>
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get queue for cache ${input} ${err}`);
+                return []
+            })
+    }
 }

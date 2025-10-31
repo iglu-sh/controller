@@ -2,8 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../iglu/cache" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../iglu/scheduler" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../types" vcs="Git" />
   </component>
 </project>

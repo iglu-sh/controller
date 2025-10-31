@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@iglu-sh/logger": "^1.0.4",
-    "@iglu-sh/types": "^0.1.16",
+    "@iglu-sh/types": "^0.1.17",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -53,14 +53,14 @@
     "redis": "^5.9.0",
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
-    "superjson": "^2.2.3",
+    "superjson": "^2.2.5",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.16",
-    "@types/node": "^20.19.23",
+    "@types/node": "^20.19.24",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "eslint": "^9.38.0",

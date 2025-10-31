@@ -1,5 +1,5 @@
 import type {ColumnDef} from "@tanstack/react-table";
-import type {builder, combinedBuilder} from "@iglu-sh/types/core/db";
+import {type builder, type combinedBuilder, type dbQueueEntry} from "@iglu-sh/types/core/db";
 import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
@@ -52,7 +52,40 @@ export const columns:ColumnDef<builder>[] = [
 ]
 
 
-export const queueColumns:ColumnDef<queueEntry> = {
-    accessorKey: "update.id",
-    header: "ID",
-}
+export const queueColumns:ColumnDef<dbQueueEntry>[] = [
+    {
+        accessorKey: "builder_run.id",
+        header: "ID",
+    },
+    {
+        accessorKey: "builder_run.status",
+        header: "Status"
+    },
+    {
+        accessorKey: "builder.name",
+        header: "Builder Name",
+        cell: ({row}) =>{
+            return(
+                <Link href={`/app/builders/${row.original.builder.id}`}>
+                    {row.original.builder.name}
+                </Link>
+            )
+        }
+    },
+    {
+        accessorKey: "builder.id",
+        header: "Actions",
+        cell: ({row}) => {
+            return(
+                <div className="flex flex-row gap-2">
+                    <Link href={`/app/builders/runs/${row.original.builder_run.id}/details`}>
+                        <Button variant="default">View Run</Button>
+                    </Link>
+                    <Link href={`/app/builders/runs/${row.original.builder_run.id}/logs`}>
+                        <Button variant="secondary">See Logs</Button>
+                    </Link>
+                </div>
+            )
+        }
+    }
+    ]
