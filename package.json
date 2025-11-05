@@ -6,7 +6,7 @@
   "scripts": {
     "build": "SKIP_ENV_VALIDATION=true bun --bun next build",
     "check": "bun --bun run next lint && tsc --noEmit",
-    "dev": "bun --bun next dev --turbo -H localhost",
+    "dev": "bun --bun next dev --turbo -H 0.0.0.0",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",

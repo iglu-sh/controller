@@ -4,7 +4,7 @@ import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {toast} from "sonner";
-import type {queueEntry} from "@iglu-sh/types/scheduler";
+import type {NodeInfo, queueEntry} from "@iglu-sh/types/scheduler";
 
 export const columns:ColumnDef<builder>[] = [
     {
@@ -76,8 +76,12 @@ export const queueColumns:ColumnDef<dbQueueEntry>[] = [
         accessorKey: "builder.id",
         header: "Actions",
         cell: ({row}) => {
+            // TODO: Implement Cancel Run Button
             return(
                 <div className="flex flex-row gap-2">
+                    <Button variant="destructive">
+                        Cancel Run
+                    </Button>
                     <Link href={`/app/builders/runs/${row.original.builder_run.id}/details`}>
                         <Button variant="default">View Run</Button>
                     </Link>
@@ -89,3 +93,37 @@ export const queueColumns:ColumnDef<dbQueueEntry>[] = [
         }
     }
     ]
+
+export const nodeColumns:ColumnDef<NodeInfo>[] = [
+    {
+        accessorKey: "node_name",
+        header: "Name"
+    },
+    {
+        accessorKey: "node_version",
+        header: "Version"
+    },
+    {
+        accessorKey: "node_arch",
+        header: "Architecture"
+    },
+    {
+        accessorKey: "node_os",
+        header: "Node OS"
+    },
+    {
+        accessorKey: "id",
+        header: "Actions",
+        cell: ({row}) =>{
+            //TODO: Implement Deregister Node Button
+            return (
+                <div className="flex flex-row gap-2">
+                    <Link href={`/app/nodes/${row.original.id}/details`}>
+                        <Button variant="secondary">Details</Button>
+                    </Link>
+                    <Button variant="destructive">Deregister</Button>
+                </div>
+            )
+        }
+    }
+]

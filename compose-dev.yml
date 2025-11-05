@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     ports:
       - 6379:6379
-
   postgres:
     image: ghcr.io/iglu-sh/postgres:latest
     restart: unless-stopped

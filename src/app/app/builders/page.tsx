@@ -5,10 +5,14 @@ import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {BuilderOverview} from "@/app/app/builders/components/builder";
 import Queue from "@/app/app/builders/components/queue";
+import {useSession} from "next-auth/react";
+import Nodes from "@/app/app/builders/components/nodes";
+import {auth} from "@/server/auth";
 
 export default function Builders(){
     // Get the current cacheID from the query params
     const searchParams = useSearchParams()
+    const session = useSession()
     if(process.env.NEXT_PUBLIC_DISABLE_BUILDER === "true"){
         // If the builder is disabled, redirect to the home page
         document.location.href = "/";
@@ -40,7 +44,10 @@ export default function Builders(){
                             </TabsList>
                             <TabsContent value="builder"><BuilderOverview cacheID={parseInt(cacheID)} /></TabsContent>
                             <TabsContent value="queue"><Queue cacheID={parseInt(cacheID)} /></TabsContent>
-                            <TabsContent value="nodes"></TabsContent>
+                            {
+                                session.data && session.data.user && session.data.user.session_user.is_admin ?
+                                    <TabsContent value="nodes"><Nodes /></TabsContent> : null
+                            }
                         </Tabs>
                     </div>
                     : <div className="flex flex-col gap-2">Loading</div>

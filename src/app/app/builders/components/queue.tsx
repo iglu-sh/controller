@@ -7,5 +7,28 @@ export default function Queue({cacheID}: {cacheID: number}) {
     const queue = api.builder.getQueue.useQuery({id: cacheID})
     return <div>
         <DataTable columns={queueColumns} data={queue.data ?? []} />
+        <div className="text-xs text-muted-foreground mt-2">
+            These are the status types:
+            <ul>
+                <li>
+                    <code>created</code> : This job has been created, but no node has claimed it yet.
+                </li>
+                <li>
+                    <code>claimed</code> : This job is queued and claimed by a node, it will be executed as soon as the node has a slot available.
+                </li>
+                <li>
+                    <code>running</code> : This job is running on a node
+                </li>
+                <li>
+                    <code>finished</code> : This job is finished
+                </li>
+                <li>
+                    <code>failed</code> : This job has failed to build
+                </li>
+                <li>
+                    <code>canceled</code> : This job was manually canceled by a user or webhook
+                </li>
+            </ul>
+        </div>
     </div>
 }
