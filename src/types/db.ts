@@ -29,10 +29,12 @@ export type builder_runs = {
     builder_id: number,
     status: string,
     started_at: Date | null,
-    finished_at: Date | null,
+    updated_at: Date,
+    ended_at: Date | null,
     gitcommit: string,
     duration: string,
-    log: string
+    log: string,
+    node: node
 }
 export type cache_key = {
     id: number,

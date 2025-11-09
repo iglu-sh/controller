@@ -18,6 +18,7 @@ import type {nodeRegistrationRequest, nodeRegistrationResponse} from "@iglu-sh/t
 import {z} from "zod";
 import * as crypto from "node:crypto";
 import Logger from "@iglu-sh/logger";
+import Database from "@/lib/db";
 
 export async function POST(request:NextRequest){
     Logger.debug(`Received request to register node`);
@@ -67,6 +68,23 @@ export async function POST(request:NextRequest){
     // Send the nodeId to the node
     const response:nodeRegistrationResponse = {
         node_id: nodeId
+    }
+    // Insert node into db
+    const db = new Database()
+    try {
+        await db.connect()
+        await db.createNode(nodeData, nodeId)
+        await db.disconnect()
+    }
+    catch(e){
+        await db.disconnect()
+        Logger.error(`Failed to register node: ${e}`);
+        return new Response(JSON.stringify({message: "Internal Server Error"}), {
+            status: 500,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
     }
     Logger.info(`Node ${nodeData.node_name} registered with ID ${nodeId}`);
     return new Response(JSON.stringify(response), {

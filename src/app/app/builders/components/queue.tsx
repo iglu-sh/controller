@@ -4,8 +4,15 @@ import {DataTable} from "@/components/custom/DataTable";
 
 export default function Queue({cacheID}: {cacheID: number}) {
     // Get the current queue
-    const queue = api.builder.getQueue.useQuery({id: cacheID})
+    const queue = api.builder.getQueue.useQuery({id: cacheID}, {
+            refetchInterval: 5000,
+        });
+
+    // Re-fetch the queue every 5 seconds
     return <div>
+        <div className="text-xs text-muted-foreground mb-2">
+            (Auto-refreshes every 5 seconds)
+        </div>
         <DataTable columns={queueColumns} data={queue.data ?? []} />
         <div className="text-xs text-muted-foreground mt-2">
             These are the status types:

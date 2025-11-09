@@ -241,7 +241,7 @@ export default class Redis{
             await db.connect()
             const builder_run = await db.getJob(parseInt(jobID))
             builder_run.status = "claimed"
-            builder_run.node = nodeID
+            builder_run.node_id = nodeID
             await db.updateJob(builder_run.id, builder_run)
             await db.disconnect()
         }
@@ -251,8 +251,54 @@ export default class Redis{
             await db.disconnect()
         }
     }
+
+    // Stops a job, either because it was canceled, finished or failed
+    // Either way it removes the job from the queue and sends a redis message in case the reason was "canceled"
+    public async stopJob(reason: "canceled" | "finished" | "failed", jobID:string){
+        const db = new Database()
+        try{
+            await db.connect()
+            // Get the job first, to make sure that it actually exists
+            const builder_run = await db.getJob(parseInt(jobID))
+            if(!builder_run){
+                throw new Error(`Builder run with ID ${jobID} does not exist in the database`);
+            }
+            if(reason === "canceled"){
+                Logger.debug(`Sending cancel message to all nodes for job ${jobID}`);
+                // Send a message to all connected nodes that the job with a certain ID is canceled
+                const data:BuildQueueMessage = {
+                    type: "cancel",
+                    job_id: jobID,
+                    builder_id: '-1', // Not needed for cancel messages
+                    target: null, // Broadcast to all nodes
+                    arch: "armv7l", // Not needed for cancel messages
+                }
+                const message:BuildChannelMessage = {
+                    type: "queue",
+                    sender: "controller",
+                    target: null,
+                    data: data
+                }
+                await this.redisClient.publish('build', JSON.stringify(message))
+                Logger.debug(`Cancel message sent`)
+            }
+            // Update the job status in the database
+
+            builder_run.status = reason
+            await db.updateJob(builder_run.id, builder_run)
+            await db.disconnect()
+        }
+        catch(e){
+            await db.disconnect()
+            Logger.error(`Error while stopping job ${jobID}`)
+            Logger.debug(`${e}`)
+        }
+
+    }
     public async quit(){
         await this.redisClient.quit()
+
     }
+
 
 }

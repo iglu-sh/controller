@@ -2,11 +2,11 @@ import {
     adminProcedure,
     createTRPCRouter, protectedProcedure,
 } from "@/server/api/trpc";
-import {
-    type User,
-    type uuid,
-    type xTheEverythingType,
-    type builder as builderType, dbQueueEntry
+import type {
+    User,
+    uuid,
+    xTheEverythingType,
+    builder as builderType, dbQueueEntry
 } from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
@@ -144,5 +144,47 @@ export const builder = createTRPCRouter({
                 return Promise.reject(e as Error);
             }
             return !!builder;
+        }),
+    cancelJob: protectedProcedure
+        .input(z.object({jobID: z.number()}))
+        .mutation(async ({ctx, input}):Promise<boolean>=>{
+            // Create the redis object
+            let redis:Redis
+            try{
+                redis = new Redis()
+                await redis.stopJob('canceled', input.jobID.toString())
+                await redis.quit()
+            }
+            catch(e){
+                // @ts-ignore reason: redis is not undefined here and even if it wasn't, we're guarding against it
+                if(redis){
+                    await redis.quit()
+                }
+                Logger.error(`Error canceling job with id ${input.jobID}`);
+                Logger.debug(`${e}`)
+                return false;
+            }
+            return true;
+        }),
+    getRunDetails: protectedProcedure
+        .input(z.object({runID: z.string()}))
+        .query(async ({ctx, input}):Promise<dbQueueEntry>=>{
+            const db = new Database()
+            let runDetails:dbQueueEntry[] = [];
+            try{
+                await db.connect()
+                runDetails = await db.getJobDetails(parseInt(input.runID))
+                await db.disconnect()
+                if(!runDetails || runDetails.length === 0 || runDetails.length > 1){
+                    throw new Error(`Run with ID ${input.runID} not found or has multiple entries`);
+                }
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                throw new Error(`Run with ID ${input.runID} not found`);
+            }
+            console.log(runDetails[0])
+            return runDetails[0] as dbQueueEntry
         })
 });

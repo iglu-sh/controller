@@ -5,6 +5,7 @@ import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {toast} from "sonner";
 import type {NodeInfo, queueEntry} from "@iglu-sh/types/scheduler";
+import CancelRun from "@/app/app/builders/components/cancel-run";
 
 export const columns:ColumnDef<builder>[] = [
     {
@@ -54,15 +55,15 @@ export const columns:ColumnDef<builder>[] = [
 
 export const queueColumns:ColumnDef<dbQueueEntry>[] = [
     {
-        accessorKey: "builder_run.id",
+        accessorKey: "builder_run.run.id",
         header: "ID",
     },
     {
-        accessorKey: "builder_run.status",
+        accessorKey: "builder_run.run.status",
         header: "Status"
     },
     {
-        accessorKey: "builder.name",
+        accessorKey: "builder.run.name",
         header: "Builder Name",
         cell: ({row}) =>{
             return(
@@ -73,19 +74,53 @@ export const queueColumns:ColumnDef<dbQueueEntry>[] = [
         }
     },
     {
+        accessorKey: "builder_run.node_info.node_name",
+        header: "Running on"
+    },
+    {
+        accessorKey: "builder_run.run.started_at",
+        header: "Duration",
+        cell: ({row}) => {
+            // Calculate the duration and switch units if needed
+
+            function diff(startInput:string, endInput:string) {
+                let start = startInput.split(":");
+                let end = endInput.split(":");
+                var startDate = new Date(0, 0, 0, start[0], start[1], 0);
+                var endDate = new Date(0, 0, 0, end[0], end[1], 0);
+                var diff = endDate.getTime() - startDate.getTime();
+                var hours = Math.floor(diff / 1000 / 60 / 60);
+                diff -= hours * 1000 * 60 * 60;
+                var minutes = Math.floor(diff / 1000 / 60);
+
+                // If using time pickers with 24 hours format, add the below line get exact hours
+                if (hours < 0)
+                    hours = hours + 24;
+
+                return (hours <= 9 ? "0" : "") + hours + ":" + (minutes <= 9 ? "0" : "") + minutes;
+            }
+
+
+            return(
+                <div>
+                    {diff(new Date(row.original.builder_run.run.started_at ?? Date.now()).toTimeString().slice(0,5), new Date(row.original.builder_run.run.updated_at).toTimeString().slice(0,5))} <div className={"text-muted-foreground text-xs"}>(HH:MM)</div>
+                </div>
+            )
+        }
+    },
+    {
         accessorKey: "builder.id",
         header: "Actions",
         cell: ({row}) => {
             // TODO: Implement Cancel Run Button
+            console.log(row.original)
             return(
                 <div className="flex flex-row gap-2">
-                    <Button variant="destructive">
-                        Cancel Run
-                    </Button>
-                    <Link href={`/app/builders/runs/${row.original.builder_run.id}/details`}>
+                    <CancelRun run={row.original} />
+                    <Link href={`/app/builders/runs/${row.original.builder_run.run.id}/details`}>
                         <Button variant="default">View Run</Button>
                     </Link>
-                    <Link href={`/app/builders/runs/${row.original.builder_run.id}/logs`}>
+                    <Link href={`/app/builders/runs/${row.original.builder_run.run.id}/logs`}>
                         <Button variant="secondary">See Logs</Button>
                     </Link>
                 </div>

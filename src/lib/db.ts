@@ -24,6 +24,7 @@ import type {
     dbQueueEntry
 } from "@iglu-sh/types/core/db";
 import {sleepSync} from "bun";
+import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -156,11 +157,23 @@ export default class Database{
                 builder_id int constraint builder_fk references cache.builder ON DELETE CASCADE,
                 status text not null,
                 started_at timestamp default now() not null,
+                updated_at timestamp default now() not null,
                 ended_at timestamp,
                 gitCommit text not null,
                 duration interval not null, -- in seconds
                 log text,
-                node_id text
+                node_id TEXT NOT NULL constraint builder_run_node_fk REFERENCES cache.nodes DEFAULT 'none'
+            );
+            create table if not exists cache.nodes
+            (
+                id text constraint node_pk primary key,
+                node_name TEXT NOT NULL,
+                node_address TEXT NOT NULL,
+                node_port TEXT NOT NULL,
+                node_version TEXT NOT NULL,
+                node_arch TEXT NOT NULL,
+                node_os TEXT NOT NULL,
+                node_max_jobs INTEGER NOT NULL 
             );
             create table if not exists cache.builder_user_link
                 (
@@ -218,6 +231,20 @@ export default class Database{
                 updated_by uuid NULL REFERENCES cache.users(id) ON DELETE SET NULL
             );
             
+            CREATE OR REPLACE FUNCTION update_modified_at_column()
+            RETURNS TRIGGER AS
+                $body$
+                    begin
+                        new.updated_at = now();
+                        return new;
+                    end;
+                $body$
+            LANGUAGE plpgsql;
+
+            CREATE OR REPLACE TRIGGER update_run_modified_at
+            AFTER UPDATE ON cache.builder_runs
+            FOR EACH ROW EXECUTE PROCEDURE update_modified_at_column();
+            
             COMMIT TRANSACTION;
         `)
 
@@ -226,6 +253,15 @@ export default class Database{
         await this.query(`
             ALTER TABLE cache.keys ADD COLUMN IF NOT EXISTS user_id uuid NULL CONSTRAINT keys_user_fk REFERENCES cache.users(id) ON DELETE CASCADE;
         `)
+
+        // We need to check if the dummy node is inserted, if not we need to insert it
+        await this.query(`SELECT * FROM cache.nodes WHERE id = 'none'`).then(async (res)=>{
+            if(res.rows.length === 0){
+                await this.query(`INSERT INTO cache.nodes (id, node_name, node_address, node_port, node_version, node_arch, node_os, node_max_jobs) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `, ['none', 'Not claimed yet', 'unknown', 'unknown', 'unknown', 'unknown', 'unknown', '0'])
+            }
+        })
 
         // Check if the user table is empty, if so we create a default admin user with the password "admin" and username "admin"
         const res = await this.query('SELECT COUNT(*) FROM cache.users');
@@ -1018,7 +1054,7 @@ export default class Database{
             builder.builder.trigger,
             builder.builder.cron,
             builder.builder.arch,
-            builder.builder.webhookURL,
+            builder.builder.webhookurl,
         ]).then((res)=>{
             if(res.rows.length === 0){
                 throw new Error("Failed to create builder");
@@ -1182,6 +1218,13 @@ export default class Database{
             })
     }
 
+    public async createNode(node:nodeRegistrationRequest, node_id:string):Promise<void>{
+        await this.query(`INSERT INTO cache.nodes 
+                          (id, node_name, node_address, node_port, node_version, node_arch, node_os, node_max_jobs)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [node_id, node.node_name, node.node_address, node.node_port, node.node_version, node.node_arch, node.node_os, node.node_max_jobs])
+    }
+
     public async createNewBuildJob(builder_id:number){
         return await this.query(`
             INSERT INTO cache.builder_runs (builder_id, status, started_at, ended_at, gitcommit, duration, log)
@@ -1213,9 +1256,10 @@ export default class Database{
                 ended_at = $3,
                 gitcommit = $4,
                 duration = $5,
-                log = $6
-            WHERE br.id = $7
-        `, [new_object.status, new_object.started_at, new_object.ended_at, new_object.gitcommit, new_object.duration, new_object.log, job_id])
+                log = $6,
+                node_id = $7
+            WHERE br.id = $8
+        `, [new_object.status, new_object.started_at, new_object.ended_at, new_object.gitcommit, new_object.duration, new_object.log, new_object.node_id, job_id])
     }
     public async getJob(job_id:number):Promise<builder_runs>{
         return await this.query(`
@@ -1240,7 +1284,6 @@ export default class Database{
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
         `) as QueryResult<combinedBuilder>
     }
-
     public async getBuildersForCache(cacheID:number):Promise<QueryResult<combinedBuilder>>{
         return await this.query(`
             SELECT row_to_json(cb.*) as builder,
@@ -1260,20 +1303,44 @@ export default class Database{
                    row_to_json(cc.*) as cachix_config,
                    row_to_json(gc.*) as git_config,
                    row_to_json(bo.*) as build_options,
-                   row_to_json(br.*) as builder_run
+                   json_build_object('node_info', row_to_json(nd.*), 'run', row_to_json(br.*)) as builder_run
             FROM cache.builder_runs br
                    INNER JOIN cache.builder cb ON cb.id = br.builder_id
                    INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
                    INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
                    INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                   INNER JOIN cache.nodes nd ON br.node_id = nd.id
             WHERE cb.cache_id = $1
-                AND br.status != 'finished' OR br.status != 'failed'
+                AND br.status != 'finished' AND br.status != 'failed' AND br.status != 'canceled'
         `, [input])
             .then((res)=>{
                 return res.rows as Array<dbQueueEntry>
             })
             .catch((err)=>{
                 Logger.error(`Failed to get queue for cache ${input} ${err}`);
+                return []
+            })
+    }
+    public async getJobDetails(runID:number):Promise<Array<dbQueueEntry>>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options,
+                   json_build_object('node_info', row_to_json(nd.*), 'run', row_to_json(br.*)) as builder_run
+            FROM cache.builder_runs br
+                     INNER JOIN cache.builder cb ON cb.id = br.builder_id
+                     INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                     INNER JOIN cache.nodes nd ON br.node_id = nd.id
+            WHERE br.id = $1 
+        `, [runID])
+            .then((res)=>{
+                return res.rows as Array<dbQueueEntry>
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get job details for runID ${runID} ${err}`);
                 return []
             })
     }
