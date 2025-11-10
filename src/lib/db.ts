@@ -8,7 +8,8 @@ import type {
     signing_key_cache_api_link,
     User,
     uuid,
-    xTheEverythingType
+    xTheEverythingType,
+    pkgsInfo
 } from "@/types/db";
 import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
@@ -151,6 +152,17 @@ export default class Database{
                 signingKey TEXT NOT NULL,
                 buildOutputDir TEXT NOT NULL
             );
+            create table if not exists cache.nodes
+            (
+                id text constraint node_pk primary key,
+                node_name TEXT NOT NULL,
+                node_address TEXT NOT NULL,
+                node_port TEXT NOT NULL,
+                node_version TEXT NOT NULL,
+                node_arch TEXT NOT NULL,
+                node_os TEXT NOT NULL,
+                node_max_jobs INTEGER NOT NULL 
+            );
             create table if not exists cache.builder_runs
             (
                 id serial constraint builder_runs_pk primary key,
@@ -163,17 +175,6 @@ export default class Database{
                 duration interval not null, -- in seconds
                 log text,
                 node_id TEXT NOT NULL constraint builder_run_node_fk REFERENCES cache.nodes DEFAULT 'none'
-            );
-            create table if not exists cache.nodes
-            (
-                id text constraint node_pk primary key,
-                node_name TEXT NOT NULL,
-                node_address TEXT NOT NULL,
-                node_port TEXT NOT NULL,
-                node_version TEXT NOT NULL,
-                node_arch TEXT NOT NULL,
-                node_os TEXT NOT NULL,
-                node_max_jobs INTEGER NOT NULL 
             );
             create table if not exists cache.builder_user_link
                 (
@@ -629,6 +630,16 @@ export default class Database{
                 , [user])
         }
         return await this.client.query(query, params)
+    }
+
+    public async getPkgsForCache(cacheId:number):Promise<Array<pkgsInfo>>{
+      return await this.query(`
+        SELECT SUM(cfilesize) AS size, cstoresuffix, MAX(updatedat) AS timestamp FROM cache.hashes
+        WHERE cache = $1
+        GROUP BY cstoresuffix;
+        `, [cacheId]).then((res:QueryResult<pkgsInfo>)=>{
+          return res;
+        })
     }
 
     public async getAuditLogForCache(cacheId:number):Promise<Array<log>>{

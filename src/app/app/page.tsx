@@ -32,6 +32,13 @@ export default function App(){
         // Only fetch if cacheID is valid
         enabled: cacheID !== null && cacheID !== undefined,
     }).data
+
+    const pkgs = api.pkgs.getPkgsForCache.useQuery({cacheId: parseInt(cacheID!)})
+    const size = cache && pkgs ? pkgs.data.rows.reduce((prev, cur) => {
+      console.log(prev + parseInt(cur.size))
+      return prev + parseFloat(cur.size) / 1024 / 1024 / 1024
+    }, 0) : 0
+
     return(
         <div className="w-full flex flex-col gap-4">
             <div className="flex flex-row justify-between items-center w-full">
@@ -40,9 +47,9 @@ export default function App(){
                         {cache ? `Cache Overview for ${cache.info.name}` : "Loading Cache Overview..."}
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
-                        {
-                            cache ? `${cache.info.uri}/${cache.info.name} • Total Packages: ${cache.packages.total}, Storage Used: ${cache.packages.storage_used} bytes` : "Loading cache details..."
-                        }
+                      {
+                          cache && pkgs ? `${cache.info.uri}/${cache.info.name} • Total Packages: ${pkgs.data.rows.length}, Storage Used: ${size.toFixed(2)}GiB` : "Loading cache details..."
+                      }
                     </p>
                 </div>
                 <div className="flex flex-row gap-2">
