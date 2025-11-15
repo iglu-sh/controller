@@ -3,7 +3,7 @@ import {createClient, type RedisClientType} from "redis";
 import Logger from "@iglu-sh/logger";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler/communication";
 import type {arch, BuildChannelMessage, BuildQueueMessage} from "@iglu-sh/types/controller";
-import type {combinedBuilder} from "@iglu-sh/types/core/db";
+import type {builder_runs, combinedBuilder} from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 
 export default class Redis{
@@ -294,6 +294,18 @@ export default class Redis{
             Logger.debug(`${e}`)
         }
 
+    }
+    public async getJob(jobId:number):Promise<builder_runs>{
+        // Grab the job from redis
+        const build = await this.redisClient.json.get(`run:${jobId}`) as builder_runs | null
+        if(!build){
+            throw new Error(`Job with ID ${jobId} not found in Redis`);
+        }
+        return build
+    }
+    public async finishJob(jobId:number):Promise<void>{
+        // Remove the job from redis
+        await this.redisClient.del(`run:${jobId}`)
     }
     public async quit(){
         await this.redisClient.quit()

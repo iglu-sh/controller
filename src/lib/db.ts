@@ -22,7 +22,7 @@ import type {
     cachixconfigs,
     public_signing_keys,
     builder_runs,
-    dbQueueEntry
+    dbQueueEntry, combinedSetupBuilder
 } from "@iglu-sh/types/core/db";
 import {sleepSync} from "bun";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
@@ -385,20 +385,25 @@ export default class Database{
 
         // Query all build configs and add them to Redis
         Logger.debug('Adding all build configs to Redis');
-        const buildConfigs:QueryResult<combinedBuilder> = await this.query(`
+        const buildConfigs:QueryResult<combinedSetupBuilder> = await this.query(`
             SELECT row_to_json(cb.*) as builder,
                    row_to_json(cc.*) as cachix_config,
                    row_to_json(gc.*) as git_config,
-                   row_to_json(bo.*) as build_options
+                   row_to_json(bo.*) as build_options,
+                   c.uri as cache_uri
             FROM cache.builder cb
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
                      INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
-        `) as QueryResult<combinedBuilder>
+                     INNER JOIN cache.caches c ON cb.cache_id = c.id
+        `) as QueryResult<combinedSetupBuilder>
 
         for(const row of buildConfigs.rows){
             Logger.debug(`Adding build config for builder ${row.builder.id} to Redis`);
             const key = `build_config_${row.builder.id}`;
+            row.cachix_config.target = row.cache_uri as unknown as number; // Not actually a number, but you know
+            // Remove the cache_uri key
+            delete row.cache_uri;
             await editor.json.set(key, '$', row).catch((err:Error)=>{
                 Logger.error(`Failed to add build config for builder ${row.builder.id} to Redis: ${err.message}`);
             });
@@ -629,9 +634,9 @@ export default class Database{
                 `SELECT set_config('cache.current_user', $1, false);`
                 , [user])
         }
+
         return await this.client.query(query, params)
     }
-
     public async getPkgsForCache(cacheId:number):Promise<Array<pkgsInfo>>{
       return await this.query(`
         SELECT SUM(cfilesize) AS size, cstoresuffix, MAX(updatedat) AS timestamp FROM cache.hashes
@@ -641,7 +646,6 @@ export default class Database{
           return res;
         })
     }
-
     public async getAuditLogForCache(cacheId:number):Promise<Array<log>>{
         return await this.query(`
             SELECT 
@@ -719,7 +723,6 @@ export default class Database{
                 throw err;
             })
     }
-
     public async authenticateUser(username:string, password:string):Promise<User | null>{
         Logger.info(`Authenticating user ${username}`);
         const user = await this.query(`
@@ -756,8 +759,6 @@ export default class Database{
         this.timeout.close()
         Logger.debug("Disconnected from DB");
     }
-
-
     public async getUserById(userId:string):Promise<User | null>{
         Logger.debug(`Getting user ${userId}`);
         return await this.query(`
@@ -774,7 +775,6 @@ export default class Database{
                 return null;
             })
     }
-
     // Mainly used for the OOB experience, and it should not be used outside of that
     // It does require a lot of processing power, so it should only be used when necessary
     public async getEverything():Promise<Array<xTheEverythingType>>{
@@ -829,7 +829,6 @@ export default class Database{
             throw err;
         })
     }
-
     public async addUserToCache(cacheId:number, userId:string):Promise<boolean>{
         return await this.query(`
             INSERT INTO cache.cache_user_link (cache_id, user_id)
@@ -843,7 +842,6 @@ export default class Database{
                 return false
             });
     }
-
     public async removeOOBFlag(userId:string):Promise<boolean>{
         return await this.query(`
             UPDATE cache.users SET show_oob = false WHERE id = $1
@@ -859,7 +857,6 @@ export default class Database{
                 return false;
             });
     }
-
     public async getCachesByUserId(userId:string):Promise<Array<cache>>{
             Logger.debug(`Getting caches for user ${userId}`);
             return await this.query(`
@@ -893,7 +890,6 @@ export default class Database{
                 return false;
             });
     }
-
     public async getApiKeysByUserId(userId:string):Promise<Array<apiKeyWithCache>>{
         return await this.query(`
             SELECT row_to_json(keys.*) as key, array_agg(row_to_json(ck.*)) as cacheKeyLinks, array_agg(row_to_json(ca.*)) as caches FROM cache.keys
@@ -909,7 +905,6 @@ export default class Database{
                 return [];
             })
     }
-
     public async getAllUsers():Promise<Array<User>>{
         return await this.query(`
             SELECT * FROM cache.users
@@ -925,7 +920,6 @@ export default class Database{
             return [];
         })
     }
-
     public async linkApiKeyToCache(apiKeyId:number, cacheId:number):Promise<boolean>{
         await this.query(`
             INSERT INTO cache.cache_key (cache_id, key_id)
@@ -947,7 +941,6 @@ export default class Database{
         }
         return true
     }
-
     public async createCache(userID:string, cacheToCreate:cacheCreationObject):Promise<cache>{
         // Check if this cache name already exists
         await this.query(`SELECT * FROM cache.caches WHERE name = $1`, [cacheToCreate.name], userID as uuid).then((res)=>{
@@ -1002,7 +995,6 @@ export default class Database{
         await this.query(`COMMIT TRANSACTION;`)
         return cache
     }
-
     public async getAuditLogByCacheId(cacheId:number):Promise<Array<log>>{
         Logger.debug(`Getting audit log by cacheId=${cacheId}`);
         return await this.query(`
@@ -1014,7 +1006,6 @@ export default class Database{
             return [];
         })
     }
-
     public async getBuilderForCache(cacheId:number):Promise<Array<builder>>{
         console.log("HELP ME GOD PLEASE")
         Logger.debug(`Getting builders for cacheId=${cacheId}`);
@@ -1134,9 +1125,6 @@ export default class Database{
         })
         return returnObject
     }
-
-
-
     public async appendApiKey(cache:number, key:string):Promise<keys> {
         //Hash the key
         const hasher = new Bun.CryptoHasher("sha512");
@@ -1158,7 +1146,6 @@ export default class Database{
 
         return result.rows[0]
     }
-
     public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean):Promise<void>{
         const hashedKey = new Bun.CryptoHasher("sha512")
         hashedKey.update(apiKey)
@@ -1212,7 +1199,6 @@ export default class Database{
         `, [id, keyID, signingKey.rows[0]!.id])
         }
     }
-
     public async getBuilderFromWebhook(hook:string):Promise<builder | null>{
         return await this.query(`
             SELECT * FROM cache.builder WHERE webhookurl = concat('/api/v1/webhooks/builder/', $1::cstring)
@@ -1228,14 +1214,12 @@ export default class Database{
                 return null;
             })
     }
-
     public async createNode(node:nodeRegistrationRequest, node_id:string):Promise<void>{
         await this.query(`INSERT INTO cache.nodes 
                           (id, node_name, node_address, node_port, node_version, node_arch, node_os, node_max_jobs)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [node_id, node.node_name, node.node_address, node.node_port, node.node_version, node.node_arch, node.node_os, node.node_max_jobs])
     }
-
     public async createNewBuildJob(builder_id:number){
         return await this.query(`
             INSERT INTO cache.builder_runs (builder_id, status, started_at, ended_at, gitcommit, duration, log)
@@ -1282,7 +1266,6 @@ export default class Database{
             return res.rows[0] as builder_runs;
         })
     }
-
     public async getAllBuilders():Promise<QueryResult<combinedBuilder>>{
         return await this.query(`
             SELECT row_to_json(cb.*) as builder,
@@ -1322,7 +1305,8 @@ export default class Database{
                    INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
                    INNER JOIN cache.nodes nd ON br.node_id = nd.id
             WHERE cb.cache_id = $1
-                AND br.status != 'finished' AND br.status != 'failed' AND br.status != 'canceled'
+                AND br.status != 'success' AND br.status != 'failed' AND br.status != 'canceled'
+            ORDER BY br.id DESC
         `, [input])
             .then((res)=>{
                 return res.rows as Array<dbQueueEntry>

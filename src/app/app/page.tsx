@@ -1,6 +1,7 @@
 'use client'
 import {auth} from "@/server/auth";
 import {redirect, useParams, useSearchParams} from "next/navigation";
+import {useState} from "react";
 import {useEffect} from "react";
 import {api} from "@/trpc/react";
 import {Badge} from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import type {log} from "@/types/db";
 export default function App(){
     const params = useSearchParams()
     const cacheID = params.get("cacheID");
+    const [size, setSize] = useState<number>(0)
 
     // Fetch the selected cache
     const cache = api.cache.getOverview.useQuery({
@@ -32,12 +34,14 @@ export default function App(){
         // Only fetch if cacheID is valid
         enabled: cacheID !== null && cacheID !== undefined,
     }).data
-
     const pkgs = api.pkgs.getPkgsForCache.useQuery({cacheId: parseInt(cacheID!)})
-    const size = cache && pkgs ? pkgs.data.rows.reduce((prev, cur) => {
-      console.log(prev + parseInt(cur.size))
-      return prev + parseFloat(cur.size) / 1024 / 1024 / 1024
-    }, 0) : 0
+    useEffect(() => {
+        if(!cache || !pkgs?.data?.rows) return;
+        setSize(pkgs.data.rows.reduce((prev, cur) => {
+            console.log(prev + parseInt(cur.size))
+            return prev + parseFloat(cur.size) / 1024 / 1024 / 1024
+        }, 0))
+    }, [pkgs, cache]);
 
     return(
         <div className="w-full flex flex-col gap-4">
@@ -48,7 +52,7 @@ export default function App(){
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {
-                          cache && pkgs ? `${cache.info.uri}/${cache.info.name} • Total Packages: ${pkgs.data.rows.length}, Storage Used: ${size.toFixed(2)}GiB` : "Loading cache details..."
+                          cache && pkgs ? `${cache.info.uri}/${cache.info.name} • Total Packages: ${pkgs.data?.rows ? pkgs.data.rows.length : 0}, Storage Used: ${size.toFixed(2)}GiB` : "Loading cache details..."
                       }
                     </p>
                 </div>
