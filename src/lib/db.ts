@@ -26,6 +26,7 @@ import type {
 } from "@iglu-sh/types/core/db";
 import {sleepSync} from "bun";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
+import Redis from "@/lib/redis";
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -410,6 +411,31 @@ export default class Database{
         }
 
         Logger.info(`Added ${buildConfigs.rows.length} build configs to Redis`);
+
+        // Check if any builders are still marked as running, if so we will cancel them
+        const runningBuilders:Array<builder_runs> = await this.query(`
+            SELECT * FROM cache.builder_runs WHERE status != 'finished' AND status != 'failed' AND status != 'canceled';
+        `)
+            .then((res:QueryResult<builder_runs>)=>{
+                return res.rows
+            })
+            .catch((err:Error)=>{
+                Logger.error(`Failed to get running builders from DB: ${err.message}`);
+                return [];
+            })
+        const redisLib = new Redis()
+        try{
+            for(const run of runningBuilders){
+                Logger.info(`Marking builder run ${run.id} as canceled`);
+                await redisLib.stopJob("canceled", run.id.toString())
+            }
+            Logger.info(`Cleared ${runningBuilders.length} builders that were in limbo`);
+            await redisLib.quit()
+        }
+        catch(err){
+            await redisLib.quit()
+            Logger.error(`Failed to quit Redis lib: ${err}`);
+        }
     }
     private async createAuditLog(){
         Logger.debug('Creating procedures for audit logging');

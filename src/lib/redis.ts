@@ -1,4 +1,4 @@
-import type { NodeInfo } from "@iglu-sh/types/scheduler";
+import type {NodeInfo, websocketMessage} from "@iglu-sh/types/scheduler";
 import {createClient, type RedisClientType} from "redis";
 import Logger from "@iglu-sh/logger";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler/communication";
@@ -114,6 +114,22 @@ export default class Redis{
         if(nodes.length === 0){
             // FIXME: This should end the build update with an error in the DB
             Logger.warn("No nodes connected to Redis, cannot advertise build update");
+            // Write a message in the log that no nodes are connected
+            const dummyRun:builder_runs = {
+                id: parseInt(jobID),
+                builder_id: parseInt(builderID),
+                status: "failed",
+                node_id: "",
+                started_at: new Date(),
+                updated_at: new Date(),
+                gitcommit: "unknown",
+                duration: "null",
+                ended_at: new Date(),
+                log: JSON.stringify({stdout: "No nodes are currently connected to the controller, cannot process build job.", jobStatus: "failed"}),
+            }
+            // Write the dummy run to redis so that the system is aware of it
+            await this.redisClient.json.set(`run:${jobID}`, '.', dummyRun)
+            await this.stopJob("failed", jobID)
             return
         }
 
@@ -265,6 +281,15 @@ export default class Redis{
             }
             if(reason === "canceled"){
                 Logger.debug(`Sending cancel message to all nodes for job ${jobID}`);
+
+                // Remove the job from redis first, so that no node can write to it anymore
+                const jobInRedis = await this.redisClient.json.get(`run:${jobID}`) as builder_runs
+                if(jobInRedis){
+                    await this.redisClient.del(`run:${jobID}`)
+                    // Write the log from redis to the database object
+                    builder_run.log = jobInRedis.log
+                }
+
                 // Send a message to all connected nodes that the job with a certain ID is canceled
                 const data:BuildQueueMessage = {
                     type: "cancel",

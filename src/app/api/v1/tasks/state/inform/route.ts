@@ -98,7 +98,8 @@ export async function POST(request: NextRequest){
         await db.disconnect()
         await redisJobClient.quit()
         Logger.error(`Failed to update state: ${err}`);
-        return new NextResponse(JSON.stringify({error: "Failed to update state"}), {status: 500});
+        // Depending on the reason, we should return different status codes but for now this works
+        return new NextResponse(JSON.stringify({error: "Failed to update state, either this job is already finishd or you're trying to update a job which never existed (spooky)"}), {status: 423});
     }
     return new NextResponse(null, {status: 204});
 }
