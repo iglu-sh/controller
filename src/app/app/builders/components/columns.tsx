@@ -31,9 +31,18 @@ export const columns:ColumnDef<builder>[] = [
                 await fetch(row.original.webhookurl, {
                     method: 'GET',
                 })
-                    .then((res)=>{
+                    .then(async (res)=>{
+                        let response = await res.text().then((text)=>{
+                            try{
+                                return JSON.parse(text)
+                            }
+                            catch{
+                                return text
+                            }
+                        })
                         if(!res.ok){
-                            toast.error(`Failed to trigger build: ${res.statusText}`)
+                            toast.error(`Failed to trigger build: ${res.statusText}, Response: ${response.error ?? "No additional info"}`)
+                            return
                         }
                         toast.success(`Build triggered successfully, refer to the queue for more info`)
                     })
@@ -86,8 +95,8 @@ export const queueColumns:ColumnDef<dbQueueEntry>[] = [
             function diff(startInput:string, endInput:string) {
                 let start = startInput.split(":");
                 let end = endInput.split(":");
-                var startDate = new Date(0, 0, 0, start[0], start[1], 0);
-                var endDate = new Date(0, 0, 0, end[0], end[1], 0);
+                var startDate = new Date(0, 0, 0, parseInt(start[0]!), parseInt(start[1]!), 0);
+                var endDate = new Date(0, 0, 0, parseInt(end[0]!), parseInt(end[1]!), 0);
                 var diff = endDate.getTime() - startDate.getTime();
                 var hours = Math.floor(diff / 1000 / 60 / 60);
                 diff -= hours * 1000 * 60 * 60;

@@ -112,7 +112,6 @@ export default class Redis{
         // Get all nodes from Redis
         const nodes = await this.getConnectedNodes()
         if(nodes.length === 0){
-            // FIXME: This should end the build update with an error in the DB
             Logger.warn("No nodes connected to Redis, cannot advertise build update");
             // Write a message in the log that no nodes are connected
             const dummyRun:builder_runs = {
@@ -130,7 +129,9 @@ export default class Redis{
             // Write the dummy run to redis so that the system is aware of it
             await this.redisClient.json.set(`run:${jobID}`, '.', dummyRun)
             await this.stopJob("failed", jobID)
-            return
+
+            // Throw to make sure the caller knows the job could not be processed
+            throw new Error("No nodes are currently connected to the controller, cannot process build job.")
         }
 
         // Get the builder from Redis to see if it exists

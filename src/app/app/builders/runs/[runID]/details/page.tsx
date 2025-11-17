@@ -4,6 +4,7 @@ import {api} from "@/trpc/react";
 import {useRouter} from "next/navigation";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import Link from "next/link";
+import Log from "@/components/custom/builder/run/log";
 
 export default function RunPage({params}: {params: Promise<{ runID: string }>}){
     const runDetails = api.builder.getRunDetails.useQuery({runID: use(params).runID}, {retry: false})
@@ -90,6 +91,9 @@ export default function RunPage({params}: {params: Promise<{ runID: string }>}){
                     </h3>
                 </CardContent>
             </Card>
+            <div className="col-span-2 h-full overflow-y-auto">
+                <Log />
+            </div>
         </div>
     </div>
 }

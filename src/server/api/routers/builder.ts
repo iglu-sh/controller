@@ -17,6 +17,9 @@ import type {combinedBuilder} from "@iglu-sh/types/core/db";
 import generateCachixKey from "@/lib/generateCachixKey";
 import type {NodeInfo, nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
 import {getRedisClient} from "@/lib/redisHelper";
+import type {arch} from "@iglu-sh/types/controller";
+import {observable} from "@trpc/server/observable";
+import { EventEmitter, on } from 'stream'
 
 export const builder = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
@@ -107,6 +110,20 @@ export const builder = createTRPCRouter({
             }
             return []
         }),
+    getRegisteredNodesLite: protectedProcedure
+        .query(async ({ctx}):Promise<{"arch":arch, "name":string}[]>=>{
+            const redis = new Redis()
+            try{
+                const nodes = await redis.getConnectedNodes()
+                await redis.quit()
+                return nodes.map((node)=>({arch: node.node_arch as arch, name: node.node_name}))
+            }
+            catch(e){
+                Logger.error(`Failed to get nodes from Redis: ${e}`);
+                await redis.quit()
+            }
+            return []
+        }),
     getQueue: protectedProcedure
         .input(z.object({id: z.number()}))
         .query(async ({ctx, input}):Promise<dbQueueEntry[]>=>{
@@ -186,5 +203,17 @@ export const builder = createTRPCRouter({
             }
             console.log(runDetails[0])
             return runDetails[0] as dbQueueEntry
+        }),
+    getLog: protectedProcedure
+        .input(z.object({cacheID: z.number(), jobID: z.number()}))
+        .subscription(async function* (opts){
+            const eventEmitter = new EventEmitter()
+            eventEmitter.emit("log", "hello world")
+            for await (const log of on(eventEmitter, "log",{
+                signal: opts.signal
+            })){
+                yield "hello world"
+            }
+
         })
 });
