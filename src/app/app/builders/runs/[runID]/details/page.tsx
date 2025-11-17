@@ -1,22 +1,24 @@
 'use client'
-import {use, useEffect} from "react";
+import {use, useEffect, useState} from "react";
 import {api} from "@/trpc/react";
-import {useRouter} from "next/navigation";
+import {useParams, useRouter} from "next/navigation";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import Link from "next/link";
 import Log from "@/components/custom/builder/run/log";
+import type {dbQueueEntry} from "@iglu-sh/types/core/db";
 
 export default function RunPage({params}: {params: Promise<{ runID: string }>}){
     const runDetails = api.builder.getRunDetails.useQuery({runID: use(params).runID}, {retry: false})
     const {runID} = use(params)
     const router = useRouter()
+    const [dbQueueEntry, setdbQueueEntry] = useState(runDetails.data)
     useEffect(() => {
         if(runDetails.isError){
             router.push("/404")
         }
     }, [runDetails.isError]);
     useEffect(() => {
-        console.log(runDetails.data)
+        setdbQueueEntry(runDetails.data)
     }, [runDetails.data]);
     if(!runDetails.data){
         return (
@@ -40,7 +42,7 @@ export default function RunPage({params}: {params: Promise<{ runID: string }>}){
                 <CardContent>
                     <h3 className="text-xl font-bold">
                         {
-                            runDetails.data.builder_run.node_info.node_name
+                            dbQueueEntry?.builder_run.node_info.node_name ?? "Loading..."
                         }
                     </h3>
                 </CardContent>
@@ -54,7 +56,7 @@ export default function RunPage({params}: {params: Promise<{ runID: string }>}){
                 <CardContent>
                     <h3 className="text-xl font-bold">
                         {
-                            runDetails.data.builder_run.run.status
+                            dbQueueEntry?.builder_run.run.status ?? "Loading..."
                         }
                     </h3>
                 </CardContent>
@@ -68,7 +70,7 @@ export default function RunPage({params}: {params: Promise<{ runID: string }>}){
                 <CardContent>
                     <h3 className="text-xl font-bold">
                         {
-                            new Date(runDetails.data.builder_run.run.started_at ?? Date.now()).toDateString()
+                            new Date(dbQueueEntry?.builder_run.run.started_at ?? Date.now()).toDateString()
                         }
                     </h3>
                 </CardContent>
@@ -92,7 +94,7 @@ export default function RunPage({params}: {params: Promise<{ runID: string }>}){
                 </CardContent>
             </Card>
             <div className="col-span-2 h-full overflow-y-auto">
-                <Log />
+                <Log buildID={runID} cacheID={runDetails.data.builder.cache_id} dbQueueEntry={runDetails.data} setDbQueueEntry={(newData:dbQueueEntry)=>{setdbQueueEntry(newData)}} />
             </div>
         </div>
     </div>

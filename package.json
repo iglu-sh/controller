@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@iglu-sh/logger": "^1.0.4",
-    "@iglu-sh/types": "^0.1.29",
+    "@iglu-sh/types": "^0.1.30",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -30,7 +30,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@t3-oss/env-nextjs": "^0.12.0",
-    "@tanstack/react-query": "^5.90.9",
+    "@tanstack/react-query": "^5.90.10",
     "@tanstack/react-table": "^8.21.3",
     "@trpc/client": "^11.7.1",
     "@trpc/react-query": "^11.7.1",

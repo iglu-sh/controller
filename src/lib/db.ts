@@ -27,6 +27,9 @@ import type {
 import {sleepSync} from "bun";
 import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
 import Redis from "@/lib/redis";
+interface redisCombinedBuilder extends combinedBuilder{
+    cache: cache
+}
 export default class Database{
     private client: Client
     private timeout: NodeJS.Timeout = setTimeout(()=>{void this.wrap(this)}, 2000)
@@ -394,7 +397,7 @@ export default class Database{
                    c.uri as cache_uri
             FROM cache.builder cb
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
                      INNER JOIN cache.caches c ON cb.cache_id = c.id
         `) as QueryResult<combinedSetupBuilder>
@@ -425,6 +428,7 @@ export default class Database{
             })
         const redisLib = new Redis()
         try{
+            await redisLib.refreshBuilders()
             for(const run of runningBuilders){
                 Logger.info(`Marking builder run ${run.id} as canceled`);
                 await redisLib.stopJob("canceled", run.id.toString())
@@ -1052,7 +1056,7 @@ export default class Database{
                    row_to_json(bo.*) as build_options
             FROM cache.builder cb
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
             WHERE cb.id = $1
         `, [builderId]).then((res:QueryResult<combinedBuilder>)=>{
@@ -1292,17 +1296,19 @@ export default class Database{
             return res.rows[0] as builder_runs;
         })
     }
-    public async getAllBuilders():Promise<QueryResult<combinedBuilder>>{
+    public async getAllBuilders():Promise<QueryResult<redisCombinedBuilder>>{
         return await this.query(`
             SELECT row_to_json(cb.*) as builder,
                    row_to_json(cc.*) as cachix_config,
                    row_to_json(gc.*) as git_config,
-                   row_to_json(bo.*) as build_options
+                   row_to_json(bo.*) as build_options,
+                   row_to_json(c) as cache
             FROM cache.builder cb
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
-        `) as QueryResult<combinedBuilder>
+                     INNER JOIN cache.caches c ON c.id = cb.cache_id
+        `) as QueryResult<redisCombinedBuilder>
     }
     public async getBuildersForCache(cacheID:number):Promise<QueryResult<combinedBuilder>>{
         return await this.query(`
@@ -1312,7 +1318,7 @@ export default class Database{
                    row_to_json(bo.*) as build_options
             FROM cache.builder cb
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
             WHERE cb.cache_id = $1 
         `, [cacheID]) as QueryResult<combinedBuilder>
@@ -1327,7 +1333,7 @@ export default class Database{
             FROM cache.builder_runs br
                    INNER JOIN cache.builder cb ON cb.id = br.builder_id
                    INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                   INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                   INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                    INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
                    INNER JOIN cache.nodes nd ON br.node_id = nd.id
             WHERE cb.cache_id = $1
@@ -1352,7 +1358,7 @@ export default class Database{
             FROM cache.builder_runs br
                      INNER JOIN cache.builder cb ON cb.id = br.builder_id
                      INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
-                     INNER JOIN cache.git_configs gc ON gc.builder_id = cc.id
+                     INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
                      INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
                      INNER JOIN cache.nodes nd ON br.node_id = nd.id
             WHERE br.id = $1 

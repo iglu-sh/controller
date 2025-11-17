@@ -28,7 +28,7 @@ services:
       POSTGRES_HOST: postgres
       LOG_LEVEL: DEBUG
       PROM_ENABLE: true
-      CACHE_ROOT_DOMAIN: http://localhost:3000
+      CACHE_ROOT_DOMAIN: http://10.0.0.72:3000
       CACHE_JWT_SECRET: abc123def456
       CACHE_MAX_GB: 100
       CACHE_FILESYSTEM_DIR: /tmp/cache

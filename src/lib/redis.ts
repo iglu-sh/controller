@@ -5,6 +5,7 @@ import type {nodeRegistrationRequest} from "@iglu-sh/types/scheduler/communicati
 import type {arch, BuildChannelMessage, BuildQueueMessage} from "@iglu-sh/types/controller";
 import type {builder_runs, combinedBuilder} from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
+import {EventEmitter} from "node:events";
 
 export default class Redis{
     private redisClient:RedisClientType
@@ -39,8 +40,17 @@ export default class Redis{
         try{
             await db.connect()
             const builders = await db.getAllBuilders()
+            Logger.debug(`Fetched ${builders.rows.length} builders from database`);
             for(const builder of builders.rows){
-                await this.redisClient.json.set(`build_config_${builder.builder.id}`, '.', builder).catch((err:Error)=>{
+                // Create a new entry in Redis for each builder
+                const redisBuilder:combinedBuilder = {
+                    ...builder,
+                    cachix_config: {
+                        ...builder.cachix_config,
+                        target: `${builder.cache.uri}/${builder.cache.name}`
+                    },
+                }
+                await this.redisClient.json.set(`build_config_${builder.builder.id}`, '.', redisBuilder).catch((err:Error)=>{
                     Logger.error(`Failed to set builder ${builder.builder.id} in Redis: ${err.message}`);
                 });
             }
@@ -336,6 +346,66 @@ export default class Redis{
     public async quit(){
         await this.redisClient.quit()
 
+    }
+    public async subscribeToJob(jobID:number):Promise<EventEmitter>{
+        const ee = new EventEmitter()
+
+        // Try to get the job details from redis first
+        let jobDetails = await this.getJob(jobID)
+            .catch((err)=>{
+                return null
+            })
+        if(!jobDetails){
+            const db = new Database()
+            try{
+                await db.connect()
+                jobDetails = await db.getJob(jobID)
+                await db.disconnect()
+            }
+            catch(err){
+                await db.disconnect()
+                Logger.error("Failed to get job details from DB: " + (err as Error).message);
+            }
+        }
+        // If we have job details, call the onMessage function with them
+        if(jobDetails){
+            // Emit the current job details after a short delay to allow the subscriber to set up listeners
+            setTimeout(()=>{
+                ee.emit("message", jobDetails)
+            }, 200)
+            // If the job is in one of the three finished states we can return early and not subscribe to the channel
+            if(jobDetails.status === "success" || jobDetails.status === "failed" || jobDetails.status === "canceled"){
+                Logger.debug(`Job with ID ${jobID} is already finished with status ${jobDetails.status}, not subscribing to updates`);
+                return ee
+            }
+        }
+        // If we do not have job details, we shouldn't subscribe and should throw an error, because this also means that the job does not exist
+        else{
+            throw new Error(`Job with ID ${jobID} does not exist`);
+        }
+        Logger.debug(`Subscribing to job updates for job ID ${jobID}`);
+
+        // Subscribe to the job channel
+        const subscriber = this.redisClient.duplicate()
+
+        await subscriber.connect()
+        await subscriber.subscribe(`build_updates`, (message:string)=>{
+            const msgObj:{
+                type: "status" | "log",
+                build_id: number,
+                data: builder_runs
+            } | undefined = JSON.parse(message)
+            if(!msgObj){
+                Logger.error("Received invalid message on build_updates channel");
+                return
+            }
+            ee.emit("message", msgObj.data)
+        })
+            .catch(async (err)=>{
+                Logger.error("Failed to subscribe to job updates: " + err.message);
+                await subscriber.quit()
+            })
+        return ee
     }
 
 

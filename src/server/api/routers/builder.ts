@@ -6,7 +6,7 @@ import type {
     User,
     uuid,
     xTheEverythingType,
-    builder as builderType, dbQueueEntry
+    builder as builderType, dbQueueEntry, builder_runs
 } from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
@@ -19,8 +19,20 @@ import type {NodeInfo, nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
 import {getRedisClient} from "@/lib/redisHelper";
 import type {arch} from "@iglu-sh/types/controller";
 import {observable} from "@trpc/server/observable";
-import { EventEmitter, on } from 'stream'
+import { EventEmitter, on } from 'node:events'
 
+type EventMap<T> = Record<keyof T, Array<any>>;
+class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
+    toIterable<TEventName extends keyof T & string>(
+        eventName: TEventName,
+        opts?: NonNullable<Parameters<typeof on>[2]>,
+    ): AsyncIterable<T[TEventName]> {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return on(this as any, eventName, opts) as any;
+    }
+}
+
+const EventEmitterInstance = new IterableEventEmitter<any>()
 export const builder = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
     createBuilder: protectedProcedure
@@ -58,15 +70,18 @@ export const builder = createTRPCRouter({
                 input.cachix_config.apikey = plaintextKey;
 
                 // Generate a webhook url
-                input.builder.webhookURL = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
+                input.builder.webhookurl = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 
                 createdBuilder = await db.createBuilder(input as unknown as combinedBuilder)
-                // Add the builder to redis
-                const redis = new Redis()
-                await redis.refreshBuilders().catch(async (err:Error)=>{
-                    Logger.error(`Failed to refresh builders in Redis: ${err.message}`);
-                })
-                await redis.quit()
+                    .then(async (builder)=>{
+                        // Add the builder to redis
+                        const redis = new Redis()
+                        await redis.refreshBuilders().catch(async (err:Error)=>{
+                            Logger.error(`Failed to refresh builders in Redis: ${err.message}`);
+                        })
+                        await redis.quit()
+                        return builder
+                    })
             }
             catch(e){
                 Logger.error(`Failed to connect to DB ${e}`);
@@ -206,14 +221,25 @@ export const builder = createTRPCRouter({
         }),
     getLog: protectedProcedure
         .input(z.object({cacheID: z.number(), jobID: z.number()}))
-        .subscription(async function* (opts){
-            const eventEmitter = new EventEmitter()
-            eventEmitter.emit("log", "hello world")
-            for await (const log of on(eventEmitter, "log",{
-                signal: opts.signal
-            })){
-                yield "hello world"
+        .subscription(async function* (opts):AsyncGenerator<builder_runs, void, unknown> {
+            console.log('Connected to Subscription for logs:', opts.input)
+            // Create Redis client
+            const redisClient = new Redis()
+            try{
+                // Subscribe to the log channel for the specific jobID and cacheID
+                const ee = await redisClient.subscribeToJob(opts.input.jobID)
+                for await (const [data] of on(ee, 'message', {
+                    signal: opts.signal,
+                })){
+                    // Yield the log data to the subscriber
+                    const run = data as builder_runs
+                    console.log('Log data received:', run)
+                    yield run
+                }
             }
-
+            finally{
+                Logger.debug("Unsubscribing from log channel")
+                await redisClient.quit()
+            }
         })
 });
