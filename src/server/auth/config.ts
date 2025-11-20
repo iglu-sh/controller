@@ -38,7 +38,7 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authConfig = {
-  providers: [
+    providers: [
     CredentialsProvider({
       // The name to display on the sign in form (e.g. "Sign in with...")
       name: "using credentials",
@@ -66,8 +66,7 @@ export const authConfig = {
           await db.disconnect()
         }
         catch(e){
-
-Logger.error(`Error authenticating user ${e}`)
+            Logger.error(`Error authenticating user ${e}`)
         }
 
         // If a user is returned, it means the credentials are valid and the user is authenticated.
@@ -90,8 +89,8 @@ Logger.error(`Error authenticating user ${e}`)
      *
      * @see https://next-auth.js.org/providers/github
      */
-  ],
-  callbacks: {
+    ],
+    callbacks: {
     session: ({session, token}) => {
 
       if(!token?.user_db){
@@ -116,5 +115,9 @@ Logger.error(`Error authenticating user ${e}`)
       }
       return token
     }
-  },
+    },
+    pages: {
+        signIn: '/auth/signin',
+        signOut: '/auth/signout'
+    }
 } satisfies NextAuthConfig;
