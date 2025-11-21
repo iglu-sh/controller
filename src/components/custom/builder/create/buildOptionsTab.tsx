@@ -2,6 +2,9 @@ import type {combinedBuilder} from "@iglu-sh/types/core/db";
 import React, {type Dispatch} from "react";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
+import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
+import {CircleAlert} from "lucide-react";
+import Link from "next/link";
 
 export default function BuildOptionsTab({config, setConfig}:{config:combinedBuilder, setConfig: Dispatch<React.SetStateAction<combinedBuilder>>}){
     return(
@@ -41,6 +44,18 @@ export default function BuildOptionsTab({config, setConfig}:{config:combinedBuil
                             />
                         </div>
                     </div>
+                    <Alert className="text-primary mt-2">
+                        <AlertTitle className="flex flex-row gap-2 items-center text-sm font-bold">
+                            <CircleAlert />
+                            About Sandboxing
+                        </AlertTitle>
+                        <AlertDescription className="text-sm">
+                            If your build command requires building inside of the Nix sandbox or fails unexpectedly, ensure that your command uses the &#34;--sandbox&#34; flag as the sandbox is disabled by default.
+                            This is important for some builds to ensure they run correctly. <br />
+                            By default, this flag ist disabled in our builder environment due to certain limitations using docker containers.
+                            If you wish to know more about the sandboxing feature of Nix and if you should turn it on, please check the official NixOS documentation&nbsp;
+                        </AlertDescription>
+                    </Alert>
                 </div>
             </CardContent>
 
