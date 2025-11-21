@@ -90,6 +90,10 @@ export async function POST(request: NextRequest){
         }
         // Send the update to the database
         await db.updateJob(dbJob.id, dbJob)
+        if(parseResult.data.new_state === "failed" || parseResult.data.new_state === "success" || parseResult.data.new_state === "aborted"){
+            // Finish the job in the database
+            await db.finishJob(dbJob.id, dbJob.status)
+        }
 
         await redisJobClient.quit()
         await db.disconnect()

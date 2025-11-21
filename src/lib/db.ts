@@ -1286,6 +1286,14 @@ export default class Database{
             WHERE br.id = $8
         `, [new_object.status, new_object.started_at, new_object.ended_at, new_object.gitcommit, new_object.duration, new_object.log, new_object.node_id, job_id])
     }
+    public async finishJob(job_id:number){
+        // Update the job in the database by calculating the interval between the start and end timestamps
+        await this.query(`
+            UPDATE cache.builder_runs SET
+                duration = (ended_at - started_at) 
+            WHERE id = $1
+        `, [job_id])
+    }
     public async getJob(job_id:number):Promise<builder_runs>{
         return await this.query(`
             SELECT * FROM cache.builder_runs WHERE id = $1
@@ -1338,6 +1346,30 @@ export default class Database{
                    INNER JOIN cache.nodes nd ON br.node_id = nd.id
             WHERE cb.cache_id = $1
                 AND br.status != 'success' AND br.status != 'failed' AND br.status != 'canceled'
+            ORDER BY br.id DESC
+        `, [input])
+            .then((res)=>{
+                return res.rows as Array<dbQueueEntry>
+            })
+            .catch((err)=>{
+                Logger.error(`Failed to get queue for cache ${input} ${err}`);
+                return []
+            })
+    }
+    public async getAllRunsForCache(input:number):Promise<Array<dbQueueEntry>>{
+        return await this.query(`
+            SELECT row_to_json(cb.*) as builder,
+                   row_to_json(cc.*) as cachix_config,
+                   row_to_json(gc.*) as git_config,
+                   row_to_json(bo.*) as build_options,
+                   json_build_object('node_info', row_to_json(nd.*), 'run', row_to_json(br.*)) as builder_run
+            FROM cache.builder_runs br
+                   INNER JOIN cache.builder cb ON cb.id = br.builder_id
+                   INNER JOIN cache.cachixconfigs cc ON cc.builder_id = cb.id
+                   INNER JOIN cache.git_configs gc ON gc.builder_id = cb.id
+                   INNER JOIN cache.buildoptions bo ON bo.builder_id = cb.id
+                   INNER JOIN cache.nodes nd ON br.node_id = nd.id
+            WHERE cb.cache_id = $1
             ORDER BY br.id DESC
         `, [input])
             .then((res)=>{

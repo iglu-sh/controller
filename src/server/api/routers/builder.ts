@@ -6,7 +6,7 @@ import type {
     User,
     uuid,
     xTheEverythingType,
-    builder as builderType, dbQueueEntry, builder_runs
+    builder as builderType, dbQueueEntry, builder_runs, valid_build_states
 } from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
@@ -138,6 +138,76 @@ export const builder = createTRPCRouter({
                 await redis.quit()
             }
             return []
+        }),
+    getBuilderById: protectedProcedure
+        .input(z.object({id: z.number()}))
+        .query(async ({ctx, input}):Promise<combinedBuilder | null>=>{
+            const db = new Database()
+            let builder:combinedBuilder | null = null;
+            try{
+                await db.connect()
+                const builderConfig = await db.getBuilderById(input.id)
+                if(!builderConfig){
+                    throw new Error(`Builder with ID ${input.id} not found`)
+                }
+                builder = builderConfig
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                return null
+            }
+            return builder
+        }),
+    getRunsForBuilder: protectedProcedure
+        .input(z.object({id: z.number(), limit: z.number().optional()}))
+        .query(async ({ctx, input}):Promise<{runDetails: dbQueueEntry[], totalRuns: number, runStates:Record<valid_build_states, number>}>=>{
+            const db = new Database()
+            let builders:dbQueueEntry[] = [];
+            let totalRuns = 0;
+            let runStates:Record<valid_build_states, number> = {
+                'created': 0,
+                'claimed': 0,
+                'starting': 0,
+                'running': 0,
+                'success': 0,
+                'failed': 0,
+                'canceled': 0,
+            }
+            try{
+                await db.connect()
+                let builder = await db.getBuilderById(input.id)
+                if(!builder){
+                    throw new Error(`Builder with ID ${input.id} not found`)
+                }
+                let completeQueue = await db.getAllRunsForCache(builder.builder.cache_id)
+                for(const queueEntry of completeQueue){
+                    if(queueEntry.builder_run.run.builder_id === input.id){
+                        totalRuns += 1
+                        runStates[queueEntry.builder_run.run.status] += 1
+                        if(input.limit && builders.length >= input.limit){
+                           continue
+                        }
+                        builders.push(queueEntry)
+                    }
+                }
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to connect to DB ${e}`);
+                await db.disconnect()
+                return {
+                    runDetails: [],
+                    totalRuns: 0,
+                    runStates: runStates
+                }
+            }
+            return {
+                runDetails: builders,
+                totalRuns: totalRuns,
+                runStates: runStates
+            }
         }),
     getQueue: protectedProcedure
         .input(z.object({id: z.number()}))

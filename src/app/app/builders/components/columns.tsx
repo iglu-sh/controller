@@ -54,7 +54,7 @@ export const columns:ColumnDef<builder>[] = [
                 <Button variant="default" id={`trigger-btn-${row.original.id}`}
                     onClick={()=>{triggerBuild()}}
                 >Trigger Build</Button>
-                <Link href={`/app/builders/edit/${row.original.id}?cacheID=${cacheID}`}><Button variant="secondary" id={`edit-btn-${row.original.id}`} className="ml-2">Details</Button></Link>
+                <Link href={`/app/builders/details/${row.original.id}?cacheID=${cacheID}`}><Button variant="secondary" id={`edit-btn-${row.original.id}`} className="ml-2">Details</Button></Link>
                 <Button variant="destructive" id={`delete-btn-${row.original.id}`} className="ml-2">Delete</Button>
             </div>
         }
@@ -76,7 +76,7 @@ export const queueColumns:ColumnDef<dbQueueEntry>[] = [
         header: "Builder Name",
         cell: ({row}) =>{
             return(
-                <Link href={`/app/builders/${row.original.builder.id}`}>
+                <Link href={`/app/builders/details/${row.original.builder.id}?cacheID=${row.original.builder.cache_id}`}>
                     {row.original.builder.name}
                 </Link>
             )
