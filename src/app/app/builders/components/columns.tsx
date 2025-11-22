@@ -6,6 +6,7 @@ import {useSearchParams} from "next/navigation";
 import {toast} from "sonner";
 import type {NodeInfo, queueEntry} from "@iglu-sh/types/scheduler";
 import CancelRun from "@/app/app/builders/components/cancel-run";
+import DeleteBuilder from "@/app/app/builders/details/[builderID]/components/deleteBuilder";
 
 export const columns:ColumnDef<builder>[] = [
     {
@@ -50,12 +51,12 @@ export const columns:ColumnDef<builder>[] = [
                         toast.error(`Failed to trigger build: ${err.message}`)
                     })
             }
-            return <div>
+            return <div className="flex flex-row gap-2">
                 <Button variant="default" id={`trigger-btn-${row.original.id}`}
                     onClick={()=>{triggerBuild()}}
                 >Trigger Build</Button>
-                <Link href={`/app/builders/details/${row.original.id}?cacheID=${cacheID}`}><Button variant="secondary" id={`edit-btn-${row.original.id}`} className="ml-2">Details</Button></Link>
-                <Button variant="destructive" id={`delete-btn-${row.original.id}`} className="ml-2">Delete</Button>
+                <Link href={`/app/builders/details/${row.original.id}?cacheID=${cacheID}`}><Button variant="secondary" id={`edit-btn-${row.original.id}`}>Details</Button></Link>
+                <DeleteBuilder builderID={row.original.id} />
             </div>
         }
     }

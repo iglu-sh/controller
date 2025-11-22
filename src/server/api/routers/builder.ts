@@ -1,3 +1,7 @@
+/*
+* FIXME: Every route in this file does not validate if the user has access to the builder and cache they are trying to access.
+* */
+
 import {
     adminProcedure,
     createTRPCRouter, protectedProcedure,
@@ -16,23 +20,9 @@ import {builderSchema} from "@/types/schemas";
 import type {combinedBuilder} from "@iglu-sh/types/core/db";
 import generateCachixKey from "@/lib/generateCachixKey";
 import type {NodeInfo, nodeRegistrationRequest} from "@iglu-sh/types/scheduler";
-import {getRedisClient} from "@/lib/redisHelper";
 import type {arch} from "@iglu-sh/types/controller";
-import {observable} from "@trpc/server/observable";
-import { EventEmitter, on } from 'node:events'
+import {on} from "node:events";
 
-type EventMap<T> = Record<keyof T, Array<any>>;
-class IterableEventEmitter<T extends EventMap<T>> extends EventEmitter<T> {
-    toIterable<TEventName extends keyof T & string>(
-        eventName: TEventName,
-        opts?: NonNullable<Parameters<typeof on>[2]>,
-    ): AsyncIterable<T[TEventName]> {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return on(this as any, eventName, opts) as any;
-    }
-}
-
-const EventEmitterInstance = new IterableEventEmitter<any>()
 export const builder = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
     createBuilder: protectedProcedure
@@ -72,7 +62,7 @@ export const builder = createTRPCRouter({
                 // Generate a webhook url
                 input.builder.webhookurl = `/api/v1/webhooks/builder/${crypto.randomUUID()}${crypto.randomUUID()}`
 
-                createdBuilder = await db.createBuilder(input as unknown as combinedBuilder)
+                createdBuilder = await db.createBuilder(input as unknown as combinedBuilder, signingKey!, apiKey)
                     .then(async (builder)=>{
                         // Add the builder to redis
                         const redis = new Redis()
@@ -89,6 +79,74 @@ export const builder = createTRPCRouter({
             }
             return Promise.resolve(createdBuilder);
         }),
+    updateBuilder: protectedProcedure
+        .input(builderSchema)
+        .mutation(async ({ctx, input}):Promise<combinedBuilder>=>{
+            const db = new Database()
+            // Should be typesafe
+            const newState:combinedBuilder = input as unknown as combinedBuilder;
+            let dbState:combinedBuilder | null;
+            try{
+                // TODO: Only update the fields that are able to be change
+                // e.g. don't allow changing cache_id, id, all of the cachix settings, etc.
+                await db.connect()
+                // Get the current state of the builder
+                dbState = await db.getBuilderById(newState.builder.id)
+                if(!dbState){
+                    throw new Error(`Builder with ID ${newState.builder.id} not found`)
+                }
+                // Map the new state onto the db state
+
+                // Update builder general information
+                dbState.builder.name = newState.builder.name
+                dbState.builder.description = newState.builder.description
+                dbState.builder.arch = newState.builder.arch
+                dbState.builder.enabled = newState.builder.enabled
+                dbState.builder.trigger = newState.builder.trigger
+                dbState.builder.cron = newState.builder.cron
+
+                // Update git options
+                dbState.git_config.repository = newState.git_config.repository
+                dbState.git_config.branch = newState.git_config.branch
+                dbState.git_config.requiresauth = newState.git_config.requiresauth
+                dbState.git_config.gitusername = newState.git_config.gitusername
+                dbState.git_config.gitkey = newState.git_config.gitkey
+
+                // Update build options
+                // We only support the command option at the moment anyways so...
+                dbState.build_options.command = newState.build_options.command
+
+                // Update the database
+                await db.updateBuilder(dbState)
+            }
+            catch(e){
+                await db.disconnect()
+                Logger.error(`Failed to connect to DB ${e}`);
+                return Promise.reject(e as Error);
+            }
+            finally {
+                await db.disconnect()
+            }
+            return dbState!
+        }),
+    deleteBuilder: protectedProcedure
+        .input(z.object({id: z.number()}))
+        .mutation(async ({ctx, input}):Promise<void>=>{
+            const db = new Database()
+            try{
+                await db.connect()
+                // Delete the builder
+                await db.deleteBuilder(input.id)
+            }
+            catch(e){
+                return Promise.reject(e as Error);
+            }
+            finally {
+                await db.disconnect()
+            }
+            return Promise.resolve();
+        })
+    ,
     getAllBuilders: protectedProcedure
         .input(z.object({cache: z.number()}))
         .query(async ({ctx, input}):Promise<builderType[]>=>{
@@ -101,7 +159,7 @@ export const builder = createTRPCRouter({
             let builders:builderType[];
             try{
                 await db.connect()
-                builders = await db.getBuilderForCache(input.cache) as builderType[]
+                builders = await db.getBuilderForCache(input.cache)
                 await db.disconnect()
             }
             catch(e){
@@ -154,9 +212,10 @@ export const builder = createTRPCRouter({
                 await db.disconnect()
             }
             catch(e){
-                Logger.error(`Failed to connect to DB ${e}`);
+                Logger.error(`Failed to get Builder from DB: ${e}`);
                 await db.disconnect()
-                return null
+                return Promise.reject(e as Error)
+
             }
             return builder
         }),

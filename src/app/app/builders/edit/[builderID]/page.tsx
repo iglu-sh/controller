@@ -11,83 +11,37 @@ import {Toaster} from "@/components/ui/sonner";
 import { toast } from "sonner";
 import {LoaderCircle} from "lucide-react";
 import {api} from "@/trpc/react";
-import {useSearchParams} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 export default function CreatePage(){
     const [loading, setLoading] = useState<boolean>(false);
-    const params = useSearchParams()
-    const randomUUID = '' as uuid;
-    const [config, setConfig] = useState<combinedBuilder>({
-        builder: {
-            id: -1,
-            cache_id: params.get('cacheID') ? parseInt(params.get('cacheID')!) : -1,
-            name: '',
-            description: '',
-            enabled: true,
-            trigger: '',
-            cron: '',
-            webhookurl: 'https://example.com/webhook',
-            arch: '',
-        },
-        cachix_config: {
-            id: -1,
-            builder_id: -1,
-            push: true,
-            target: params.get('cacheID') ? parseInt(params.get('cacheID')!) : -1, // Target cache?
-            apikey: '',
-            signingkey: '',
-            buildoutpudir: './result'
-        },
-        git_config: {
-            id: -1,
-            builder_id: -1,
-            repository: '',
-            branch: 'main',
-            gitusername: '',
-            gitkey: '',
-            requiresauth: false,
-            noclone: false
-        },
-        build_options: {
-            id: -1,
-            builder_id: -1,
-            cores: 4,
-            maxjobs: 4,
-            keep_going: false,
-            extraargs: '',
-            command: '',
-            substituters: [
-                {
-                    url: 'https://cache.nixos.org',
-                    public_signing_keys: ['cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=']
-                }
-            ]
-        }
-    })
-    const createBuilder = api.builder.createBuilder.useMutation({
+    const {builderID} = useParams()
+    const router = useRouter()
+    const apiConfig = api.builder.getBuilderById.useQuery({id:parseInt((builderID ?? 0).toString())})
+
+    const [config, setConfig] = useState<combinedBuilder>(apiConfig.data!);
+
+    const updateBuilder = api.builder.updateBuilder.useMutation({
         onSuccess: (result)=>{
             setLoading(false);
-            toast.success(`Builder ${result.builder.name} created successfully!`);
+            toast.success(`Builder ${result.builder.name} edited successfully!`);
             // Redirect to the builder page
             window.location.href = `/app/builders/details/${result.builder.id}`;
         },
         onError: (error)=>{
             setLoading(false);
-            toast.error(`Failed to create builder: ${error.message}`);
+            toast.error(`Failed to update builder: ${error.message}`);
         }
     })
     useEffect(()=>{
         console.log(config)
     }, [config])
-    useEffect(() => {
-        console.log(params.get('cacheID'));
-    }, [params]);
     function handleSubmit(){
         setLoading(true)
+        console.log(config)
         const result = builderSchema.safeParse(config);
         if(!result.success){
             setLoading(false);
             for(const error of result.error.errors){
-                console.log(error)
                 const keyPath = error.path.join('->');
                 toast.error(`Invalid value for ${keyPath}: ${error.message}`);
             }
@@ -95,7 +49,10 @@ export default function CreatePage(){
         }
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        createBuilder.mutate(config as never)
+        updateBuilder.mutate(config as never)
+    }
+    if(!config){
+        return <div>Loading...</div>
     }
     return(
         <div className="flex flex-col gap-4 w-full">
@@ -119,7 +76,7 @@ export default function CreatePage(){
                 {
                     loading ? <div className="animate-spin">
                         <LoaderCircle />
-                    </div> : 'Create Builder'
+                    </div> : 'Update Builder'
                 }
             </Button>
             <Toaster richColors={true} />

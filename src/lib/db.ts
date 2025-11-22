@@ -153,7 +153,9 @@ export default class Database{
                 push BOOL NOT NULL,
                 target INTEGER NOT NULL CONSTRAINT cachix_target_fk REFERENCES cache.caches,
                 apiKey TEXT NOT NULL,
+                apiKeyID INTEGER NOT NULL CONSTRAINT apiKey_fk REFERENCES cache.keys ON DELETE CASCADE,
                 signingKey TEXT NOT NULL,
+                signingKeyID INTEGER NOT NULL CONSTRAINT signingKey_fk REFERENCES cache.public_signing_keys ON DELETE CASCADE,
                 buildOutputDir TEXT NOT NULL
             );
             create table if not exists cache.nodes
@@ -179,12 +181,6 @@ export default class Database{
                 duration interval not null, -- in seconds
                 log text,
                 node_id TEXT NOT NULL constraint builder_run_node_fk REFERENCES cache.nodes DEFAULT 'none'
-            );
-            create table if not exists cache.builder_user_link
-                (
-                id serial constraint builder_user_link_pk primary key,
-                builder_id int constraint builder_fk references cache.builder ON DELETE CASCADE,
-                user_id uuid constraint user_fk references cache.users ON DELETE CASCADE
             );
             create table if not exists cache.cache_user_link
                 (
@@ -1069,7 +1065,7 @@ export default class Database{
             return null;
         })
     }
-    public async createBuilder(builder:combinedBuilder):Promise<combinedBuilder>{
+    public async createBuilder(builder:combinedBuilder, signingkey:public_signing_keys, apikey:keys):Promise<combinedBuilder>{
         Logger.debug(`Creating builder for cache ${builder.builder.cache_id}`);
 
         // First, create the builder in itself
@@ -1137,15 +1133,17 @@ export default class Database{
 
         // Finally, create the cachix config
         await this.query(`
-            INSERT INTO cache.cachixConfigs (builder_id, push, target, apiKey, signingKey, buildOutputDir)
-                VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO cache.cachixConfigs (builder_id, push, target, apiKey, apiKeyId, signingKey, signingkeyid, buildOutputDir)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         `, [
             returnObject.builder.id,
             builder.cachix_config.push,
             builder.cachix_config.target,
             builder.cachix_config.apikey,
+            apikey.id,
             builder.cachix_config.signingkey,
+            signingkey.id,
             builder.cachix_config.buildoutpudir
         ]).then((res)=>{
             if(res.rows.length === 0){
@@ -1155,6 +1153,102 @@ export default class Database{
         })
         return returnObject
     }
+    // Function basically does the same as createBuilder, but instead it updates the existing builders
+    public async updateBuilder(builder:combinedBuilder):Promise<void>{
+        Logger.debug(`Creating builder for cache ${builder.builder.cache_id}`);
+
+        // First, update the builder in itself
+        await this.query(`
+        UPDATE cache.builder SET 
+             cache_id = $1,
+             name = $2, 
+             description = $3, 
+             enabled = $4, 
+             trigger = $5, 
+             cron = $6, 
+             arch = $7, 
+             webhookURL = $8
+            WHERE id = $9
+        `, [
+            builder.builder.cache_id,
+            builder.builder.name,
+            builder.builder.description,
+            builder.builder.enabled,
+            builder.builder.trigger,
+            builder.builder.cron,
+            builder.builder.arch,
+            builder.builder.webhookurl,
+            builder.builder.id
+        ])
+
+        // Then, update the git config
+        await this.query(`
+            UPDATE cache.git_configs SET 
+                builder_id = $1, 
+                repository = $2, 
+                branch = $3, 
+                gitUsername = $4, 
+                gitKey = $5, 
+                requiresAuth = $6, 
+                noClone = $7
+            WHERE id = $8
+        `, [
+            builder.builder.id,
+            builder.git_config.repository,
+            builder.git_config.branch,
+            builder.git_config.gitusername,
+            builder.git_config.gitkey,
+            builder.git_config.requiresauth,
+            builder.git_config.noclone,
+            builder.git_config.id
+        ])
+
+        // Then, update the build options
+        await this.query(`
+            UPDATE cache.buildOptions SET 
+                builder_id = $1, 
+                 cores = $2, 
+                 maxJobs = $3, 
+                 keep_going = $4, 
+                 extraArgs = $5, 
+                 substituters = $6, 
+                 parallelBuilds = $7, 
+                 command = $8
+            WHERE id = $9
+        `, [
+            builder.builder.id,
+            builder.build_options.cores,
+            builder.build_options.maxjobs,
+            builder.build_options.keep_going,
+            builder.build_options.extraargs,
+            builder.build_options.substituters,
+            false,
+            builder.build_options.command,
+            builder.build_options.id
+        ])
+
+        // Finally, update the cachix config
+        await this.query(`
+            UPDATE cache.cachixConfigs SET
+             builder_id = $1, 
+             push = $2, 
+             target = $3, 
+             apiKey = $4, 
+             signingKey = $5, 
+             buildOutputDir = $6
+            WHERE id = $7
+        `, [
+            builder.builder.id,
+            builder.cachix_config.push,
+            builder.cachix_config.target,
+            builder.cachix_config.apikey,
+            builder.cachix_config.signingkey,
+            builder.cachix_config.buildoutpudir ?? "./result",
+            builder.cachix_config.id
+        ])
+
+    }
+
     public async appendApiKey(cache:number, key:string):Promise<keys> {
         //Hash the key
         const hasher = new Bun.CryptoHasher("sha512");
@@ -1176,7 +1270,72 @@ export default class Database{
 
         return result.rows[0]
     }
-    public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean):Promise<void>{
+    public async deleteBuilder(builderId:number):Promise<void>{
+        Logger.info(`Deleting builder with ID ${builderId}`);
+
+        await this.query(`
+            START TRANSACTION;
+        `)
+        try{
+            await this.query(`
+                DELETE FROM cache.builder_runs WHERE id = $1
+            `, [builderId])
+            await this.query(`
+                DELETE FROM cache.buildoptions WHERE id = $1
+            `, [builderId])
+            await this.query(`
+                DELETE FROM cache.git_configs WHERE id = $1
+            `, [builderId])
+
+            // Regarding the cachixconfigs, we need to first get the api key id and signing key id to delete them as well
+            const cachixConfig =  await this.query(`
+                SELECT * FROM cache.cachixconfigs WHERE builder_id = $1
+            `, [builderId]).then((res:QueryResult<cachixconfigs>)=>{
+                if(res.rows.length === 0){
+                    throw new Error("Cachix config not found for builder");
+                }
+                return res.rows[0]!
+            })
+            // Delete the linking entry first
+            await this.query(`
+                DELETE FROM cache.signing_key_cache_api_link
+                    WHERE signing_key_id = $1
+                    AND key_id = $2
+            `, [cachixConfig.signingkeyid, cachixConfig.apikeyid])
+            await this.query(`
+                DELETE FROM cache.cache_key
+                    WHERE key_id = $1
+            `, [cachixConfig.apikeyid])
+
+            // Delete the signing key and api key
+            await this.query(`
+                DELETE FROM cache.keys
+                    WHERE id = $1
+            `, [cachixConfig.apikeyid])
+            await this.query(`
+                DELETE FROM cache.public_signing_keys
+                    WHERE id = $1
+            `, [cachixConfig.signingkeyid])
+
+            await this.query(`
+                DELETE FROM cache.cachixconfigs WHERE id = $1
+            `, [builderId])
+
+            await this.query(`
+                DELETE FROM cache.builder WHERE id = $1
+            `, [builderId])
+            await this.query(`
+                COMMIT TRANSACTION;
+            `)
+        }
+        catch(e){
+            await this.query("ROLLBACK;")
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+            return Promise.reject(e)
+        }
+        Logger.debug(`Builder with ID ${builderId} deleted successfully`);
+    }
+    public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean):Promise<public_signing_keys|void>{
         const hashedKey = new Bun.CryptoHasher("sha512")
         hashedKey.update(apiKey)
         let hash = hashedKey.digest("hex")
@@ -1227,6 +1386,7 @@ export default class Database{
                 INSERT INTO cache.signing_key_cache_api_link (cache_id, key_id, signing_key_id) 
                 VALUES ($1, $2, $3)
         `, [id, keyID, signingKey.rows[0]!.id])
+            return signingKey.rows[0]!
         }
     }
     public async getBuilderFromWebhook(hook:string):Promise<builder | null>{

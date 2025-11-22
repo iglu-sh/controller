@@ -9,7 +9,7 @@ export const builderSchema = z.object({
         enabled: z.boolean(),
         trigger: z.enum(['manual', 'cron', 'webhook']),
         cron: z.string().optional(),
-        webhookURL: z.string().url().optional(),
+        webhookurl: z.string().optional(),
         arch: z.enum([
             'x86_64-linux',
             'aarch64-linux',

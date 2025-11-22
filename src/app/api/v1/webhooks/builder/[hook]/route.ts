@@ -38,9 +38,10 @@ export async function GET(request:NextRequest, {params}:{params:{hook:string}}){
                 published = true
                 Logger.debug(`Published build job ${buildJob?.id} to Redis`)
             })
-            .catch(()=>{
+            .catch((e)=>{
                 published = false
                 Logger.error(`Failed to publish build job ${buildJob?.id} to Redis`)
+                Logger.debug(`Redis publish error: ${e}`)
             })
         await redis.quit()
     }

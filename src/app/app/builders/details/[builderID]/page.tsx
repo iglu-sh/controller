@@ -10,6 +10,8 @@ import {toast} from "sonner";
 import JsonView from "@/app/app/builders/details/[builderID]/components/JsonView";
 import {DataTable} from "@/components/custom/DataTable";
 import {columns} from "@/app/app/builders/details/[builderID]/components/columns";
+import Link from "next/link";
+import DeleteBuilder from "@/app/app/builders/details/[builderID]/components/deleteBuilder";
 
 export default function BuilderDetailsPage(){
     const params = useParams()
@@ -22,6 +24,24 @@ export default function BuilderDetailsPage(){
     if(builder.isLoading || !builder.data || runs.isLoading || !runs.data){
         return <div>Loading...</div>
     }
+    async function triggerBuild(){
+        // Calls the webhook endpoint to trigger a build
+        toast.info("Triggering build, if this fails, make sure that you have at least one node connected to your controller...")
+        await fetch(builder.data!.builder.webhookurl, {
+            method: 'GET'
+        })
+            .then((res)=>{
+                if(res.ok){
+                    toast.success("Build triggered successfully!")
+                }
+                else{
+                    toast.error("Failed to trigger build, please make sure that you have at least one node connected to your controller.")
+                }
+            })
+            .catch(()=>{
+                toast.error("Failed to trigger build, please make sure that you have at least one node connected to your controller.")
+            })
+    }
     return(
         <div className="flex flex-col gap-4 w-full">
             <div className="flex flex-row justify-between items-center w-full">
@@ -30,9 +50,11 @@ export default function BuilderDetailsPage(){
                     <p>Overview for Builder {builder.data.builder.name}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                    <Button>Edit Builder</Button>
-                    <Button variant="destructive">Delete Builder</Button>
-                    <Button variant="secondary">Trigger Build</Button>
+                    <Link href={`/app/builders/edit/${builderID}?cacheID=${builder.data.builder.cache_id}`} className="w-full">
+                        <Button className="w-full">Edit Builder</Button>
+                    </Link>
+                    <DeleteBuilder builderID={parseInt(builderID as string)} />
+                    <Button variant="secondary" onClick={triggerBuild}>Trigger Build</Button>
                     <JsonView data={builder.data} />
                 </div>
             </div>
