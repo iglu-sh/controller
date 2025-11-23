@@ -1,49 +1,31 @@
 'use client'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import CachesTab from "@/app/app/admin/Components/cachesTab";
 import {api} from "@/trpc/react";
-import {useEffect} from "react";
-import {Button} from "@/components/ui/button";
+import {LoaderCircle} from "lucide-react";
 
 export default function AdminPage(){
-    const nodes = api.builder.getRegisteredNodes.useQuery()
-    const builders = api.builder.getAllBuilders.useQuery({cache: 1})
-    const sendTestJobMutation = api.builder.sendTestJob.useMutation()
-    useEffect(()=>{
-        console.log(nodes)
-    }, [nodes.data])
-    function sendTestJob(nodeID:string){
+    const everything = api.admin.getCachesPropagated.useQuery()
 
-    }
-    return (
-        <div>
-            <h1>Admin Page</h1>
-            <p>This is the admin page.</p>
-            <h2>Registered Nodes</h2>
-            <table>
-                <thead>
-                <tr>
-                    <th>Node Name</th>
-                    <th>Node Address</th>
-                    <th>Node Port</th>
-                    <th>Node OS</th>
-                    <th>Node Arch</th>
-                    <th>Node Max Jobs</th>
-                </tr>
-                </thead>
-                <tbody className="table">
-                {
-                    nodes.data?.map((node)=>{
-                        return(
-                            <tr key={node.id}>
-                                <td>{node.id}</td>
-                                <td>{node.node_name}</td>
-                                <td>{node.node_port}</td>
-                                <td>{node.node_os}</td>
-                            </tr>
-                        )
-                    })
-                }
-                </tbody>
-            </table>
+    return(
+        <div className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-2xl font-bold">Admin Page</h1>
+                <span>Change specific settings of your cache</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+
+            </div>
+            <Tabs defaultValue="caches" className="w-full">
+                <TabsList className="w-full">
+                    <TabsTrigger value="caches">Caches</TabsTrigger>
+                    <TabsTrigger value="users">Users</TabsTrigger>
+                    <TabsTrigger value="builders">Builders</TabsTrigger>
+                    <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+                    <TabsTrigger value="services">Services</TabsTrigger>
+                </TabsList>
+                <TabsContent value="caches">{everything.data ? <CachesTab everything={everything.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
+            </Tabs>
         </div>
     )
 }

@@ -2,7 +2,7 @@ import {
     adminProcedure,
     createTRPCRouter,
 } from "@/server/api/trpc";
-import type {User, uuid, xTheEverythingType} from "@/types/db";
+import type {User, uuid, xTheEverythingType} from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import {z} from "zod";
