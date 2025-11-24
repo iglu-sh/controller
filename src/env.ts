@@ -44,6 +44,7 @@ export const env = createEnv({
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_CACHE_URL: z.string(),
     NEXT_PUBLIC_DISABLE_BUILDER: z.enum(["true", "false"]),
+    NEXT_PUBLIC_VERSION: z.string().optional().default("0.0.1alpha-dev")
   },
 
   /**
@@ -70,6 +71,7 @@ export const env = createEnv({
     NEXT_PUBLIC_DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
     NODE_PSK: process.env.NODE_PSK,
     REDIS_URL: process.env.REDIS_URL,
+    NEXT_PUBLIC_VERSION: process.env.NEXT_PUBLIC_VERSION
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

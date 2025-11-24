@@ -1580,4 +1580,12 @@ export default class Database{
             return res.rows as Array<{user:User, caches:cache[], apikeys:keys[], signingkeys:Array<{public_signing_key:public_signing_keys[], signing_key_cache_api_link:signing_key_cache_api_link[]}>}>;
         })
     }
+    public async getAllBuildersPerCaches():Promise<Array<{"cache":cache, "builders":builder[] | null}>>{
+        return this.query(`
+            SELECT row_to_json(ca.*)  as cache,
+                     (SELECT json_agg(b.*) FROM cache.builder b WHERE b.cache_id = ca.id GROUP BY ca.id) as builders
+            FROM cache.caches ca;
+        `)
+            .then((res)=> {return res.rows as Array<{"cache":cache, "builders":builder[] | null}>})
+    }
 }

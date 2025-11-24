@@ -1,7 +1,8 @@
 import type {ColumnDef} from "@tanstack/react-table";
-import type {cache, keys, public_signing_keys, User, xTheEverythingType} from "@iglu-sh/types/core/db";
+import type {builder, cache, keys, public_signing_keys, User, xTheEverythingType} from "@iglu-sh/types/core/db";
 import {Button} from "@/components/ui/button";
 import type {signing_key_cache_api_link} from "@/types/db";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 
 export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
     {
@@ -78,6 +79,72 @@ export const userColumns:ColumnDef<Array<{
                         Delete User
                     </Button>
                 </div>
+            )
+        }
+    }
+]
+
+export const buildersColumns:ColumnDef<builder>[] = [
+    {
+        accessorKey: "name",
+        header: "Name",
+    },
+    {
+        accessorKey: "arch",
+        header: "Architecture",
+    },
+    {
+        accessorKey: "trigger",
+        header: "Trigger",
+    },
+    {
+        accessorKey: "id",
+        header: "Actions",
+        cell: ({row}) => {
+            return(
+                <div className="flex flex-row gap-2">
+                    <Button>Details</Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="secondary">Edit</Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Coming soon™️!
+                        </TooltipContent>
+                    </Tooltip>
+                    <Button variant="destructive">Delete</Button>
+                </div>
+            )
+        }
+    }
+]
+export const configColumns:ColumnDef<{
+    envVar: string,
+    value: unknown,
+    description: string
+}>[] = [
+    {
+        accessorKey: "envVar",
+        header: "Environment Variable",
+    },
+    {
+        accessorKey: "value",
+        header: "Value",
+        cell: ({row}) => String(row.original.value ?? "Not set")
+    },
+    {
+        accessorKey: "description",
+        header: "Description",
+        cell: ({row}) => {
+            return(
+                <Tooltip>
+                    <TooltipTrigger>
+                        {row.original.description.slice(0, 30) + (row.original.description.length > 30 ? "..." : "")}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {row.original.description}
+                    </TooltipContent>
+                </Tooltip>
             )
         }
     }

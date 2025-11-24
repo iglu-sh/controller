@@ -104,7 +104,6 @@ export function DataTable<TData, TValue>({
 
     return (
       <div>
-        <TableMenu/>
         <div className="rounded-md border">
             <Table>
                 <TableHeader>
@@ -112,7 +111,7 @@ export function DataTable<TData, TValue>({
                         <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => {
                                 return (
-                                    <TableHead key={header.id} className={(header.index !== 0 ? "text-right text-xl font-bold" : "text-xl font-bold")}>
+                                    <TableHead key={header.id} className={(header.index !== 0 ? "text-right font-bold" : 'font-bold')}>
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -133,7 +132,7 @@ export function DataTable<TData, TValue>({
                                 data-state={row.getIsSelected() && "selected"}
                             >
                                 {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id} className={cell.column.getIndex() !== 0 ? "text-right" : ""}>
+                                    <TableCell key={cell.id} className={cell.column.getIndex() !== 0 ? "text-right justify-items-end-safe" : ""}>
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
                                 ))}

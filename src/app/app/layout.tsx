@@ -15,6 +15,7 @@ import {
     BreadcrumbList,
     BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
+import Link from "next/link";
 
 export default async function AppLayout({
                                        children,
@@ -82,6 +83,9 @@ export default async function AppLayout({
                             </Breadcrumb> : null
                     }
                     {children}
+                    <footer className="w-full mt-auto flex justify-center items-center text-muted-foreground text-xs">
+                         <Link href={`https://github.com/iglu-sh/controller/releases/tag/${process.env.NEXT_PUBLIC_VERSION ?? "unknown"}`}>Iglu Version {process.env.NEXT_PUBLIC_VERSION ?? "unknown"}</Link> &nbsp;|&nbsp; Made with ❤️ by Iglu.sh &nbsp;|&nbsp; <Link href="/oss">Cool Open Source Projects</Link>
+                    </footer>
                 </main>
                 <Toaster richColors={true} />
             </SidebarProvider>

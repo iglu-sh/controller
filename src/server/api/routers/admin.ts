@@ -2,12 +2,12 @@ import {
     adminProcedure,
     createTRPCRouter,
 } from "@/server/api/trpc";
-import type {User, uuid, xTheEverythingType, cache, public_signing_keys, keys} from "@iglu-sh/types/core/db";
+import type {User, uuid, xTheEverythingType, public_signing_keys, keys,signing_key_cache_api_link, cache, builder } from "@iglu-sh/types/core/db";
 
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import {z} from "zod";
-import type {signing_key_cache_api_link} from "@/types/db";
+import {env} from "@/env";
 
 export const admin = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
@@ -166,11 +166,143 @@ export const admin = createTRPCRouter({
                 returnVal = await db.getAllUsersWithKeysAndCaches();
             }
             catch(e){
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                 await Promise.reject(`Failed to query Users: ${e}`);
             }
             finally {
                 await db.disconnect()
             }
             return returnVal
+        }),
+    getBuildersForCaches: adminProcedure
+        .query(async ():Promise<Array<{"cache": cache, "builders": builder[] | null}>> =>{
+            const db = new Database()
+            Logger.debug(`Getting builders for caches in Admin TRPC`);
+            let returnVal:Array<{"cache": cache, "builders": builder[] | null}> = []
+            try{
+                await db.connect()
+                returnVal = await db.getAllBuildersPerCaches();
+            }
+            catch(e){
+                Logger.error(`Failed to query Users: ${e}`);
+                await Promise.reject(new Error(`Failed to query Users: ${e}`));
+            }
+            finally {
+                await db.disconnect()
+            }
+            return returnVal
+        }),
+    getControllerConfig: adminProcedure
+        .query(async ():Promise<
+            {
+                server: Array<{
+                    envVar: string,
+                    value: unknown,
+                    description: string
+                }>,
+                client: Array<{
+                    envVar: string,
+                    value: unknown,
+                    description: string
+                }>
+            }> => {
+            Logger.debug(`Getting controller config via Admin TRPC`);
+            const environment = env;
+            return {
+                server: [
+                    {
+                        envVar: "AUTH_SECRET",
+                        value: environment.AUTH_SECRET,
+                        description: "The next-auth secret used to sign authentication tokens."
+                    },
+                    {
+                        envVar: "NODE_ENV",
+                        value: environment.NODE_ENV,
+                        description: "The environment the controller is running in (development/production). For you, this should always be 'production'."
+                    },
+                    {
+                        envVar: "DB_USER",
+                        value: environment.DB_USER,
+                        description: "The database user the controller uses to connect to the database."
+                    },
+                    {
+                        envVar: "DB_PASSWORD",
+                        value: environment.DB_PASSWORD ? "********" : null,
+                        description: "The database password the controller uses to connect to the database."
+                    },
+                    {
+                        envVar: "DB_HOST",
+                        value: environment.DB_HOST,
+                        description: "The database host the controller uses to connect to the database."
+                    },
+                    {
+                        envVar: "DB_PORT",
+                        value: environment.DB_PORT,
+                        description: "The database port the controller uses to connect to the database."
+                    },
+                    {
+                        envVar: "DB_NAME",
+                        value: environment.DB_NAME,
+                        description: "The database name the controller uses to connect to the database. This database must already exist (this is done by the Iglu Cache which you should have deployed before starting the controller)."
+                    },
+                    {
+                        envVar: "LOG_LEVEL",
+                        value: environment.LOG_LEVEL,
+                        description: "The log level the controller uses. This can be one of 'DEBUG', 'INFO', 'WARN', 'ERROR'."
+                    },
+                    {
+                        envVar: "LOGGER_JSON",
+                        value: environment.LOGGER_JSON,
+                        description: "Whether the logger should log in JSON format. This is useful for logging in production environments."
+                    },
+                    {
+                        envVar: "LOGGER_PREFIX",
+                        value: environment.LOGGER_PREFIX,
+                        description: "A prefix to add to all log messages."
+                    },
+                    {
+                        envVar: "LOGGER_PREFIX_COLOR",
+                        value: environment.LOGGER_PREFIX_COLOR,
+                        description: "The color of the prefix to add to all log messages."
+                    },
+                    {
+                        envVar: "AUTH_TRUST_HOST",
+                        value: environment.AUTH_TRUST_HOST,
+                        description: "Whether to trust the host header for authentication. This should be set to true if you are running the controller behind a reverse proxy."
+                    },
+                    {
+                        envVar: "DISABLE_BUILDER",
+                        value: environment.DISABLE_BUILDER,
+                        description: "Whether to disable the builder functionality in the controller. Disabling the builders will also disable the need for a redis instance, so choose wisely."
+                    },
+                    {
+                        envVar: "NODE_PSK",
+                        value: environment.NODE_PSK ? "********" : null,
+                        description: "The pre-shared key used for node-to-controller communication. A node is any Iglu Scheduler Instance which can spin up builders. This key must be the same on all schedulers and the controller."
+                    },
+                    {
+                        envVar: "REDIS_URL",
+                        value: environment.REDIS_URL,
+                        description: "The Redis URL used for caching and communication between the controller and schedulers/builders. This is only needed if you have not disabled the builder functionality."
+                    },
+                ],
+                client: [
+                    {
+                        envVar: "NEXT_PUBLIC_CONTROLLER_URL",
+                        value: environment.NEXT_PUBLIC_CACHE_URL,
+                        description: "The URL of the Iglu Cache you are connecting to."
+                    },
+                    {
+                        envVar: "NEXT_PUBLIC_DISABLE_BUILDER",
+                        value: environment.NEXT_PUBLIC_DISABLE_BUILDER,
+                        description: "Whether to disable the builder functionality in the controller client. Disabling the builders will hide all builder-related functionality in the UI."
+                    },
+                    {
+                        envVar: "NEXT_PUBLIC_VERSION",
+                        value: environment.NEXT_PUBLIC_VERSION,
+                        description: "The current version of the Iglu Controller. You won't have to set this, this is done at release time automatically."
+                    }
+                ]
+            }
         })
 });

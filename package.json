@@ -18,6 +18,7 @@
   "dependencies": {
     "@iglu-sh/logger": "^1.0.4",
     "@iglu-sh/types": "^0.1.33",
+    "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-checkbox": "^1.3.3",

@@ -18,7 +18,7 @@ export default function UsersTab({users}:{users:Array<{
         <Card>
             <CardHeader className="flex flex-row gap-2 justify-between">
                 <div className="flex flex-col gap-2">
-                    <CardTitle>
+                    <CardTitle className="text-xl font-bold">
                         Users
                     </CardTitle>
                     <CardDescription>
