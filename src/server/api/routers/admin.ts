@@ -2,10 +2,12 @@ import {
     adminProcedure,
     createTRPCRouter,
 } from "@/server/api/trpc";
-import type {User, uuid, xTheEverythingType} from "@iglu-sh/types/core/db";
+import type {User, uuid, xTheEverythingType, cache, public_signing_keys, keys} from "@iglu-sh/types/core/db";
+
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import {z} from "zod";
+import type {signing_key_cache_api_link} from "@/types/db";
 
 export const admin = createTRPCRouter({
     // Returns a list of all caches with everything attached to them via joins
@@ -138,5 +140,37 @@ export const admin = createTRPCRouter({
             return {
                 success: success,
             }
+        }),
+    getAllUsers: adminProcedure
+        .query(async ({ctx}):Promise<Array<{
+                user: User;
+                caches: cache[];
+                apikeys: keys[];
+                signingkeys: Array<{
+                    public_signing_key: public_signing_keys[];
+                    signing_key_cache_api_link: signing_key_cache_api_link[]
+                }>
+            }>> => {
+            const db = new Database()
+            let returnVal:Array<{
+                user: User;
+                caches: cache[];
+                apikeys: keys[];
+                signingkeys: Array<{
+                    public_signing_key: public_signing_keys[];
+                    signing_key_cache_api_link: signing_key_cache_api_link[]
+                }>
+            }> = []
+            try{
+                await db.connect()
+                returnVal = await db.getAllUsersWithKeysAndCaches();
+            }
+            catch(e){
+                await Promise.reject(`Failed to query Users: ${e}`);
+            }
+            finally {
+                await db.disconnect()
+            }
+            return returnVal
         })
 });

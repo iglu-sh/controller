@@ -1,6 +1,7 @@
 import type {ColumnDef} from "@tanstack/react-table";
-import type {xTheEverythingType} from "@iglu-sh/types/core/db";
+import type {cache, keys, public_signing_keys, User, xTheEverythingType} from "@iglu-sh/types/core/db";
 import {Button} from "@/components/ui/button";
+import type {signing_key_cache_api_link} from "@/types/db";
 
 export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
     {
@@ -10,12 +11,12 @@ export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
     {
         accessorKey: "cache.api_keys",
         header: "API Keys",
-        cell: ({row}) => (row.original.cache.api_keys ?? []).length
+        cell: ({row}) => (row.original.api_keys ?? []).length
     },
     {
         accessorKey: "cache.builders",
         header: "Builders",
-        cell: ({row}) => (row.original.cache.builders ?? []).length
+        cell: ({row}) => (row.original.builders ?? []).length
     },
     {
         accessorKey: "cache.id",
@@ -31,6 +32,50 @@ export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
                     </Button>
                     <Button variant="destructive">
                         Delete Cache
+                    </Button>
+                </div>
+            )
+        }
+    }
+]
+
+export const userColumns:ColumnDef<Array<{
+    user: User;
+    caches: cache[];
+    apikeys: keys[];
+    signingkeys: Array<{
+        public_signing_key: public_signing_keys[];
+        signing_key_cache_api_link: signing_key_cache_api_link[]
+    }>
+}>> = [
+    {
+        accessorKey: "user.username",
+        header: "User Name",
+    },
+    {
+        accessorKey: "caches",
+        header: "Assigned Caches",
+        cell: ({row}) => (row.original.caches ?? []).length
+    },
+    {
+        accessorKey: "apikeys",
+        header: "API Keys",
+        cell: ({row}:{row:any}) => (row.original.apikeys ?? []).length
+    },
+    {
+        accessorKey: "user.id",
+        header: "Actions",
+        cell: ({row}:{row:any}) => {
+            return(
+                <div className="flex flex-row gap-2">
+                    <Button>
+                        View Details
+                    </Button>
+                    <Button variant="secondary">
+                        Edit User
+                    </Button>
+                    <Button variant="destructive">
+                        Delete User
                     </Button>
                 </div>
             )

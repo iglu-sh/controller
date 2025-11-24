@@ -3,10 +3,11 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import CachesTab from "@/app/app/admin/Components/cachesTab";
 import {api} from "@/trpc/react";
 import {LoaderCircle} from "lucide-react";
+import UsersTab from "@/app/app/admin/Components/usersTab";
 
 export default function AdminPage(){
     const everything = api.admin.getCachesPropagated.useQuery()
-
+    const users = api.admin.getAllUsers.useQuery()
     return(
         <div className="flex flex-col gap-4 w-full">
             <div className="flex flex-col gap-2">
@@ -25,6 +26,7 @@ export default function AdminPage(){
                     <TabsTrigger value="services">Services</TabsTrigger>
                 </TabsList>
                 <TabsContent value="caches">{everything.data ? <CachesTab everything={everything.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
+                <TabsContent value="users">{users.data ? <UsersTab users={users.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
             </Tabs>
         </div>
     )
