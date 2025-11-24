@@ -9,12 +9,12 @@ export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
     },
     {
         accessorKey: "cache.api_keys",
-        header: "Number of API Keys",
+        header: "API Keys",
         cell: ({row}) => (row.original.cache.api_keys ?? []).length
     },
     {
         accessorKey: "cache.builders",
-        header: "Number of Builders",
+        header: "Builders",
         cell: ({row}) => (row.original.cache.builders ?? []).length
     },
     {

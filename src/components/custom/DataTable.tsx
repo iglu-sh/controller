@@ -4,6 +4,7 @@ import {
     type ColumnDef,
     flexRender,
     getCoreRowModel,
+    getPaginationRowModel,
     useReactTable,
 } from "@tanstack/react-table"
 
@@ -15,23 +16,95 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {useState} from "react"
+import { Button } from "../ui/button"
+import { ArrowLeft, ArrowRight } from "lucide-react"
 
-interface DataTableProps<TData, TValue> {
+import {
+  Select,
+  SelectItem,
+  SelectContent,
+  SelectTrigger,
+  SelectValue } from "../ui/select"
+
+interface DataTableProps<TData, TValue, pageIndex, pageSize, noPagination> {
     columns: ColumnDef<TData, TValue>[]
-    data: TData[]
+    data: TData[],
+    pageIndex: pageIndex 
+    pageSize: pageSize
+    noPagination: noPagination
 }
 
 export function DataTable<TData, TValue>({
                                              columns,
                                              data,
-                                         }: DataTableProps<TData, TValue>) {
+                                             pageIndex,
+                                             pageSize,
+                                             noPagination
+                                         }: DataTableProps<TData, TValue, number, number, boolean>) {
+
+    if(!pageIndex){
+      pageIndex = 0
+    }
+    if(!pageSize){
+      pageSize = 25
+    }
+    if(!noPagination){
+      noPagination = false
+    }
+
+    const [pagination, setPagination] = useState({
+      pageIndex: pageIndex,
+      pageSize: pageSize
+    })
+
     const table = useReactTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: !noPagination ? getPaginationRowModel() : undefined,
+        onPaginationChange: !noPagination ? setPagination : undefined,
+        state: !noPagination ? { pagination } : undefined
     })
 
+    const TableMenu = () => {
+      if(!noPagination){
+        return(
+          <div className="grid grid-cols-[100px_1fr_100px] mb-5 mt-5">
+            <Button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+            <ArrowLeft/> Previous 
+            </Button>
+            <div className="flex justify-center">
+              <Select
+                onValueChange={(value) => {
+                  table.setPageSize(Number(value))
+                }}
+              >
+              <SelectTrigger>
+                <SelectValue placeholder={table.getState().pagination.pageSize} defaultValue={table.getState().pagination.pageSize}/>
+              </SelectTrigger>
+              <SelectContent>
+                {[25, 50, 75, 100].map(pageSize => (
+                  <SelectItem key={pageSize} value={String(pageSize)}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+            Next <ArrowRight/>
+            </Button>
+          </div>
+        )
+      }else{
+        return(<></>)
+      }
+    }
+
     return (
+      <div>
+        <TableMenu/>
         <div className="rounded-md border">
             <Table>
                 <TableHeader>
@@ -39,7 +112,7 @@ export function DataTable<TData, TValue>({
                         <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => {
                                 return (
-                                    <TableHead key={header.id}>
+                                    <TableHead key={header.id} className={(header.index !== 0 ? "text-right text-xl font-bold" : "text-xl font-bold")}>
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -60,7 +133,7 @@ export function DataTable<TData, TValue>({
                                 data-state={row.getIsSelected() && "selected"}
                             >
                                 {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id}>
+                                    <TableCell key={cell.id} className={cell.column.getIndex() !== 0 ? "text-right" : ""}>
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
                                 ))}
@@ -76,5 +149,7 @@ export function DataTable<TData, TValue>({
                 </TableBody>
             </Table>
         </div>
+        <TableMenu/>
+      </div>
     )
 }
