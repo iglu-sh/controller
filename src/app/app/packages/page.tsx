@@ -66,7 +66,7 @@ export default function Packages(){
           </div>
             {
                 pkgs.isLoading || !pkgs.data ? (<div>Loading...</div>) : (
-                    <DataTable columns={columns} data={pkgs?.data?.rows as pkgsInfo[] ?? []} />
+                    <DataTable columns={columns} data={pkgs?.data?.rows as pkgsInfo[] ?? []}/>
                 ) 
             }
         </div>
