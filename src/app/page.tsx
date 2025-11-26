@@ -1,63 +1,31 @@
-'use client'
-import Image from "next/image";
-import { setCookie } from 'cookies-next/client';
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import "./home.css"
-import {RefObject, useRef } from "react";
-import { Toaster } from "@/components/ui/sonner";
-import { toast } from "sonner";
-import {Radio_Canada} from "next/dist/compiled/@next/font/dist/google";
-export default function Home() {
-    const inputRef:RefObject<null | HTMLInputElement> = useRef(null);
-    const keepLoggedInRef:RefObject<null | HTMLInputElement> = useRef(null);
-    const handleLogin = async () => {
-        if(!inputRef.current || !inputRef.current.value){
-            toast("Please enter a valid API key")
-            return
-        }
-        const apiKey = inputRef.current.value;
-        const keepLoggedIn = keepLoggedInRef.current?.checked;
-        const headers = new Headers()
-        headers.append("Authorization", `Bearer ${apiKey}`)
-        const requestOptions = {
-            method: 'GET',
-            headers: headers,
-            redirect: 'follow'
-        }
-        // @ts-ignore
-        await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/caches`, requestOptions)
-            .then(response => {
-                if(response.status === 200){
-                    const cookieOptions = {
-                        maxAge: keepLoggedIn ? 60 * 60 * 24 * 7 : 0, // 7 days or session
-                    }
-                    setCookie('iglu-session', apiKey, cookieOptions)
-                    window.location.href = "/app/caches"
+import Link from "next/link";
 
-                }
-                else{
-                    toast("Invalid API key")
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    }
-    return (
-        <div className="Home">
-            <div>
-                <h1>Enter API key to continue</h1>
-                <div style={{display: "flex", flexDirection: "row"}}>
-                    <Input ref={inputRef}/>
-                    <Button variant="outline" style={{marginLeft:"10px"}} onClick={handleLogin}>Login</Button>
-                </div>
-                <div style={{display: "flex", flexDirection: "row"}}>
-                    <input type="checkbox" ref={keepLoggedInRef} name="keepLoggedIn" id="keepLoggedIn"/>
-                    <label htmlFor="keepLoggedIn">Keep me logged in for 7 days</label>
-                </div>
-            </div>
-            <Toaster/>
-        </div>
-    );
+import { auth } from "@/server/auth";
+import { HydrateClient } from "@/trpc/server";
+import {Button} from "@/components/ui/button";
+import { redirect } from 'next/navigation'
+export default async function Home() {
+  const session = await auth();
+
+  if (session?.user) {
+    redirect("/app")
+  }
+
+  return (
+    <HydrateClient>
+      <main className="max-w-[800px] mx-auto p-4 flex flex-col gap-4 items-center justify-center h-screen">
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-bold">
+              Hello there!
+            </h1>
+            Please login to continue
+          </div>
+          <Link href={"/api/auth/signin"}>
+            <Button>
+              Go to Login
+            </Button>
+          </Link>
+      </main>
+    </HydrateClient>
+  );
 }

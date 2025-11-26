@@ -1,107 +1,219 @@
 'use client'
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList, BreadcrumbPage,
-    BreadcrumbSeparator
-} from "@/components/ui/breadcrumb";
-import React, {useEffect, useState} from "react";
-import {cache, cacheInfoObject, userInfoObject} from "@/types/api";
-import {getCookie} from "cookies-next";
-import {Toaster} from "@/components/ui/sonner";
-import {toast} from 'sonner'
-import Link from "next/link";
+import {auth} from "@/server/auth";
+import {redirect, useParams, useSearchParams} from "next/navigation";
+import {useState} from "react";
+import {useEffect} from "react";
+import {api} from "@/trpc/react";
+import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import CacheOverviewTable from "@/components/custom/dashboard/cacheOverviewTable";
+import {
+    Clock,
+    Database,
+    Download, Hammer,
+    HardDrive, Network,
+    Package,
+    RefreshCcw,
+    Settings,
+    SettingsIcon,
+    Users,
+    Zap
+} from "lucide-react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import { ArrowDown, ArrowUp, Clock, Download, HardDrive, Package } from "lucide-react"
-import {CacheActivityChart} from "@/components/custom/dashboard/cache-activity-chart";
-import CacheOverview from "@/components/custom/dashboard/cacheOverviewCards";
-import {useSearchParams} from "next/navigation";
-export default function Home(){
-    const searchParams = useSearchParams()
-    //I know that this is duplicate code, but I cannot pass the caches object from the parent layout to this one
-    const [caches, setCaches] = React.useState<userInfoObject | null>(null);
-    const [currentCache, setCurrentCache] = React.useState<cache | "all">("all");
-    useEffect(()=>{
-        const apiKey = getCookie("iglu-session");
-        if(!apiKey){
-            window.location.href = "/"
-        }
+import Activity from "@/components/custom/overview/activity";
+import type {log} from "@/types/db";
 
-        async function fetchUserData(){
-            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/v1/user`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                }
-            });
-            if(!response.ok){
-                window.location.href = "/"
-            }
-            const data = await response.json();
-            console.log(data)
-            setCaches(data);
-            //Get the ?cache= from the url
-            const urlParams = new URLSearchParams(window.location.search);
-            const cacheParam = urlParams.get("cache");
-            console.log("Cache parameter: %s", urlParams.get("cache"), cacheParam);
-            if(!cacheParam || cacheParam === "all") {
-                setCurrentCache("all")
-            }
-            else {
-                const cache = data.caches.filter((item)=> item.id == cacheParam);
-                if(cache[0]) {
-                    setCurrentCache(cache[0]);
-                } else {
-                    setCurrentCache("all");
-                }
-            }
-        }
-        fetchUserData()
+export default function App(){
+    const params = useSearchParams()
+    const cacheID = params.get("cacheID");
+    const [size, setSize] = useState<number>(0)
 
-
-    }, [])
-    useEffect(()=>{
-        console.log(currentCache)
-    }, [currentCache])
-
+    // Fetch the selected cache
+    const cache = api.cache.getOverview.useQuery({
+        cacheID: parseInt(cacheID!) // This should be replaced with the actual cache ID you want to fetch
+    }, {
+        // Only fetch if cacheID is valid
+        enabled: cacheID !== null && cacheID !== undefined,
+    }).data
+    const pkgs = api.pkgs.getPkgsForCache.useQuery({cacheId: parseInt(cacheID!)})
     useEffect(() => {
-        if(!caches) return;
+        if(!cache || !pkgs?.data?.rows) return;
+        setSize(pkgs.data.rows.reduce((prev, cur) => {
+            console.log(prev + parseInt(cur.size))
+            return prev + parseFloat(cur.size) / 1024 / 1024 / 1024
+        }, 0))
+    }, [pkgs, cache]);
 
-        //Listen to SearchParams changes (this is needed because a switch in the sidebar will change the url but not re-call the useEffect)
-        //Get the ?cache= from the url
-        const urlParams = new URLSearchParams(window.location.search);
-        const cacheParam = urlParams.get("cache");
-        console.log(urlParams.get("cache"), cacheParam);
-        if(!cacheParam || cacheParam === "all") {
-            setCurrentCache("all")
-        }
-        else {
-            const cache = caches.caches.filter((item)=> item.id == cacheParam);
-            if(cache[0]) {
-                setCurrentCache(cache[0]);
-            } else {
-                setCurrentCache("all");
-            }
-        }
-    }, [searchParams]);
     return(
-        <div className="flex flex-col gap-6">
-            <h1>
-                Dashboard
-            </h1>
-            <div>
-                Hey there 👋, welcome back! You are currently seeing data for
-                {
-                    currentCache === "all" ?
-                        <span style={{color: "var(--color-orange-400"}}> all the caches you have access too</span> :
-                        <span style={{color: "var(--color-green-400"}}> cache "{currentCache.name}"</span>
-                }
+        <div className="w-full flex flex-col gap-4">
+            <div className="flex flex-row justify-between items-center w-full">
+                <div className="flex flex-col">
+                    <h1 className="text-3xl font-bold">
+                        {cache ? `Cache Overview for ${cache.info.name}` : "Loading Cache Overview..."}
+                    </h1>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {
+                          cache && pkgs ? `${cache.info.uri}/${cache.info.name} • Total Packages: ${pkgs.data?.rows ? pkgs.data.rows.length : 0}, Storage Used: ${size.toFixed(2)}GiB` : "Loading cache details..."
+                      }
+                    </p>
+                </div>
+                <div className="flex flex-row gap-2">
+                    <Badge className="border-green-500 bg-transparent rounded-full text-green-500">
+                        Healthy
+                    </Badge>
+                    <Button onClick={()=>{window.location.reload()}}>
+                        <RefreshCcw />
+                        Refresh
+                    </Button>
+                </div>
             </div>
-            <CacheOverview />
+            <div className="grid grid-cols-2 gap-2">
+                <Card className="flex flex-col gap-0">
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            Total Packages
+                        </div>
+                        <Package size={18} />
+                    </CardHeader>
+                    <CardContent>
+                        <strong className="text-2xl font-bold">
+                            {cache ? cache.packages.total : "Loading..."}
+                        </strong>
+                    </CardContent>
+                </Card>
+                <Card className="flex flex-col gap-0">
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            Storage Used
+                        </div>
+                        <HardDrive size={18} />
+                    </CardHeader>
+                    <CardContent>
+                        <strong className="text-2xl font-bold">
+                            {cache ? cache.packages.total : "Loading..."}
+                        </strong>
+                    </CardContent>
+                </Card>
+                <Card className="flex flex-col gap-0">
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            Cache Hit Rate
+                        </div>
+                        <Download size={18} />
+                    </CardHeader>
+                    <CardContent>
+                        <strong className="text-2xl font-bold">
+                            {cache ? cache.packages.total : "Loading..."}
+                        </strong>
+                    </CardContent>
+                </Card>
+                <Card className="flex flex-col gap-0">
+                    <CardHeader className="flex flex-row justify-between items-center">
+                        <div>
+                            Response Time
+                        </div>
+                        <Clock size={18} />
+                    </CardHeader>
+                    <CardContent>
+                        <strong className="text-2xl font-bold">
+                            {cache ? cache.packages.total : "Loading..."} ms
+                        </strong>
+                    </CardContent>
+                </Card>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
+                        <Zap />
+                        Quick Actions
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-row gap-2 items-center">
+                                <SettingsIcon size={18} />
+                                Settings
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                Configure cache behavior, storage, and more.
+                            </div>
+                        </div>
+                    </Button>
+                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-row gap-2 items-center">
+                                <Users size={18} />
+                                User Management
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                Manage access & permissions.
+                            </div>
+                        </div>
+                    </Button>
+                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-row gap-2 items-center">
+                                <Database />
+                                Storage Management
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                Cleanup & optimization
+                            </div>
+                        </div>
+                    </Button>
+                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-row gap-2 items-center">
+                                <Hammer />
+                                Builders
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                Manage build processes and configurations.
+                            </div>
+                        </div>
+                    </Button>
+                </CardContent>
+            </Card>
+            <div className="grid grid-cols-2 gap-2">
+                <Card>
+                    <CardContent className="flex flex-col gap-4 overflow-x-auto">
+                        <CardTitle>
+                            Cache Information
+                        </CardTitle>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex flex-row gap-2 items-center">
+                                <Network size={18}/><strong>Endpoint</strong> {cache ? `${cache.info.uri}/${cache.info.name}` : 'Loading...'}
+                            </div>
+                            <div className="flex flex-row gap-2 items-center">
+                               <Database size={18} /><strong>Compression</strong> {cache ? cache.info.preferredcompressionmethod : 'Loading...'}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="flex flex-col gap-4">
+                        <CardTitle>
+                            Recent Activity
+                        </CardTitle>
+                        <div className="flex flex-col gap-2 h-50 max-h-50 overflow-y-auto">
+                            {
+                                cache?
+                                        cache.audit_log.map((log: log, index:number)=>{
+
+                                            return(
+                                                <Activity log={log} key={index} />
+                                            )
+                                        })
+                                     :
+                                    null
+                            }
+                        </div>
+                        <Button variant="outline" className="w-full mt-2" onClick={() => redirect("/activity")}>
+                            View All Activity
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     )
 }

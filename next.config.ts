@@ -1,14 +1,23 @@
-import type { NextConfig } from "next";
+/**
+ * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
+ * for Docker builds.
+ */
+import "@/env.ts";
+import Database from "@/lib/db";
+import redis from "redis";
+import {buildDeregisterMsg} from "@/lib/redisHelper";
+import Logger from "@iglu-sh/logger";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
-    ignoreBuildErrors: true,
-  },
+/** @type {import("next").NextConfig} */
+const config = {
+    allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', "10.0.0.72", "*"],
 };
-
-export default nextConfig;
+// Skip DB setup if building
+if (process.env.SKIP_ENV_VALIDATION !== 'true'){
+  const db = new Database()
+  void db.connect().then(async ()=>{
+      await db.setupDB()
+      await db.disconnect()
+  })
+}
+export default config;

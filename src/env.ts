@@ -1,0 +1,86 @@
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+import Logger from '@iglu-sh/logger'
+
+Logger.debug('Initialized Logger')
+export const env = createEnv({
+  /**
+   * Specify your server-side environment variables schema here. This way you can ensure the app
+   * isn't built with invalid env vars.
+   */
+  server: {
+    AUTH_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional(),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    DB_USER: z.string(),
+    DB_PASSWORD: z.string(),
+    DB_HOST: z.string(),
+    DB_PORT: z.string().optional().default("5432"),
+    DB_NAME: z.string().default("cache"),
+    LOG_LEVEL: z.enum(["DEBUG", "INFO", "WARNING", "ERROR"]).optional(),
+    LOGGER_USE_ENV: z.enum(["true", "false"]).optional().default("false"),
+    LOGGER_JSON: z.enum(["true", "false"]).optional().default("false"),
+    LOGGER_PREFIX: z.string().optional().default('Controller'),
+    LOGGER_PREFIX_COLOR: z
+      .enum(["RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])
+      .optional()
+      .default("MAGENTA"),
+    AUTH_TRUST_HOST: z.enum(["true", "false"]).optional().default("false"),
+    DISABLE_BUILDER: z.enum(["true", "false"]).optional().default("false"),
+    REDIS_URL: z.string(),
+    NODE_PSK: z.string()
+  },
+
+  /**
+   * Specify your client-side environment variables schema here. This way you can ensure the app
+   * isn't built with invalid env vars. To expose them to the client, prefix them with
+   * `NEXT_PUBLIC_`.
+   */
+  client: {
+    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_CACHE_URL: z.string(),
+    NEXT_PUBLIC_DISABLE_BUILDER: z.enum(["true", "false"]),
+    NEXT_PUBLIC_VERSION: z.string().optional().default("0.0.1alpha-dev")
+  },
+
+  /**
+   * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
+   * middlewares) or client-side so we need to destruct manually.
+   */
+  runtimeEnv: {
+    AUTH_SECRET: process.env.AUTH_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
+    DB_USER: process.env.DB_USER,
+    DB_PASSWORD: process.env.DB_PASSWORD,
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT,
+    DB_NAME: process.env.DB_NAME,
+    LOG_LEVEL: process.env.LOG_LEVEL,
+    LOGGER_USE_ENV: process.env.LOGGER_USE_ENV,
+    LOGGER_JSON: process.env.LOGGER_JSON,
+    LOGGER_PREFIX: process.env.LOGGER_PREFIX,
+    LOGGER_PREFIX_COLOR: process.env.LOGGER_PREFIX_COLOR,
+    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    NEXT_PUBLIC_CACHE_URL: process.env.NEXT_PUBLIC_CACHE_URL,
+    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
+    DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
+    NEXT_PUBLIC_DISABLE_BUILDER: process.env.DISABLE_BUILDER === "true" ? "true" : "false",
+    NODE_PSK: process.env.NODE_PSK,
+    REDIS_URL: process.env.REDIS_URL,
+    NEXT_PUBLIC_VERSION: process.env.NEXT_PUBLIC_VERSION
+  },
+  /**
+   * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
+   * useful for Docker builds.
+   */
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  /**
+   * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
+   * `SOME_VAR=''` will throw an error.
+   */
+  emptyStringAsUndefined: true,
+});
