@@ -1,37 +1,29 @@
-{ buildBunApplication
-, stdenv
+{bun2nix
+, glibc
+, deadnix
+, nixpkgs-fmt
 }:
 
-let
-  isX86_64 = stdenv.hostPlatform.system == "x86_64-linux";
-in
-buildBunApplication {
+bun2nix.writeBunApplication {
+  packageJson = ../../../package.json;
   src = ../../..;
 
-  nodeModuleHash = if isX86_64 then "sha256-qQ/FOpzPmrF612Sa9zK2cln3Tg3DNdJIGwcUpoQK7WQ=" else "sha256-kRINXi21q8Gnq5GGuEKu6arbxqooK1ZkOuBeM2gwsS4=";
-
-  bunExtraArgs = "--bun";
-  bunScript = "start";
-
-  filesToInstall = [
-    "src"
-    "public"
-    "next.config.ts"
+  nativeBuildInputs = [
+    deadnix
+    nixpkgs-fmt
   ];
 
-  buildOutput = [
-    ".next"
-  ];
-
-  nodeModulesToKeep = [
-    "."
-  ];
-
-  nodeExecToKeep = [
-    "next"
-  ];
+  buildInputs = [ glibc ];
 
   buildPhase = ''
-    bun run --bun build
+    bun run build
   '';
+
+  startScript = ''
+    bun run start
+  '';
+
+  bunDeps = bun2nix.fetchBunDeps {
+    bunNix = ./bun.nix;
+  };
 }
