@@ -35,24 +35,24 @@ jobs:
           echo "Building docker for $system!"
           nix build .#packages.$system.iglu-controller-docker
           sudo docker load < result
-          version=$(docker images | grep iglu-controller-docker | head -n1 | awk '{print $2}' | cut -d- -f1)
+          version=$(docker images | grep iglu-controller | head -n1 | awk '{print $2}' | cut -d- -f1)
         done
 
         echo
         echo
         echo "Pushing docker to ghcr.io!"
-        docker tag iglu-controller-docker:$version-arm64 ghcr.io/iglu-sh/iglu-controller-docker:$version-arm64 
-        docker tag iglu-controller-docker:$version-amd64 ghcr.io/iglu-sh/iglu-controller-docker:$version-amd64 
-        docker push ghcr.io/iglu-sh/iglu-controller-docker:$version-arm64 
-        docker push ghcr.io/iglu-sh/iglu-controller-docker:$version-amd64 
+        docker tag iglu-controller:$version-arm64 ghcr.io/iglu-sh/iglu-controller:$version-arm64 
+        docker tag iglu-controller:$version-amd64 ghcr.io/iglu-sh/iglu-controller:$version-amd64 
+        docker push ghcr.io/iglu-sh/iglu-controller:$version-arm64 
+        docker push ghcr.io/iglu-sh/iglu-controller:$version-amd64 
 
         for tag in latest $version; do
           echo
           echo
           echo "Creating multiarch image for $tag!"
-          docker manifest create ghcr.io/iglu-sh/iglu-controller-docker:$tag \
-          --amend ghcr.io/iglu-sh/iglu-controller-docker:$version-amd64 \
-          --amend ghcr.io/iglu-sh/iglu-controller-docker:$version-arm64
-          docker manifest push ghcr.io/iglu-sh/iglu-controller-docker:$tag
+          docker manifest create ghcr.io/iglu-sh/iglu-controller:$tag \
+          --amend ghcr.io/iglu-sh/iglu-controller:$version-amd64 \
+          --amend ghcr.io/iglu-sh/iglu-controller:$version-arm64
+          docker manifest push ghcr.io/iglu-sh/iglu-controller:$tag
         done
 
