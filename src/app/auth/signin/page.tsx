@@ -5,7 +5,7 @@ import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
 import {Checkbox} from "@/components/ui/checkbox";
 import {getCsrfToken, SessionProvider, useSession} from "next-auth/react";
-import {useEffect, useState} from "react";
+import {Suspense, useEffect, useState} from "react";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
 import {AlertCircleIcon} from "lucide-react";
@@ -14,7 +14,9 @@ import {toast, Toaster} from "sonner";
 export default function SignInWrapper(){
     return(
         <SessionProvider>
+          <Suspense fallback={<>...</>}>
             <SignInPage />
+          </Suspense>
         </SessionProvider>
     )
 }
@@ -39,7 +41,7 @@ export function SignInPage(){
             const errorMessage = signInErrorsToMessagesMap[errorParam] ?? signInErrorsToMessagesMap.Default
             setError(errorMessage!)
         }
-    }, []);
+    });
 
     useEffect(() => {
         // Redirect if authenticated
