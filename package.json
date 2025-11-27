@@ -12,7 +12,7 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
-    "start": "--bun next start",
+    "start": "bun --bun run next start",
     "typecheck": "tsc --noEmit",
     "postinstall": "bunx bun2nix -o ./nix/pkgs/iglu-controller/bun.nix && deadnix -e ./nix/pkgs/iglu-controller/bun.nix && nixpkgs-fmt ./nix/pkgs/iglu-controller/bun.nix"
   },
