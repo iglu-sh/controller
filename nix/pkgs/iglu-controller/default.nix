@@ -20,7 +20,7 @@ bun2nix.writeBunApplication {
   '';
 
   startScript = ''
-    bun run start
+    bun --bun run next start
   '';
 
   bunDeps = bun2nix.fetchBunDeps {
