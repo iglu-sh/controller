@@ -1,7 +1,7 @@
 {bun2nix
-, glibc
-, deadnix
-, nixpkgs-fmt
+,glibc
+,deadnix
+,nixpkgs-fmt
 }:
 
 bun2nix.writeBunApplication {
