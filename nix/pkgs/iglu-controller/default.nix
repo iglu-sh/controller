@@ -1,7 +1,8 @@
-{bun2nix
-,glibc
-,deadnix
-,nixpkgs-fmt
+{ bun2nix
+, glibc
+, deadnix
+, nixpkgs-fmt
+, nix
 }:
 
 bun2nix.writeBunApplication {
@@ -13,7 +14,10 @@ bun2nix.writeBunApplication {
     nixpkgs-fmt
   ];
 
-  buildInputs = [ glibc ];
+  buildInputs = [
+    glibc
+    nix
+  ];
 
   buildPhase = ''
     bun run build
