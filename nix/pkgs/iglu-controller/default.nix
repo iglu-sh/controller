@@ -3,6 +3,7 @@
 , deadnix
 , nixpkgs-fmt
 , nix
+, lib
 }:
 
 bun2nix.writeBunApplication {
@@ -21,6 +22,11 @@ bun2nix.writeBunApplication {
 
   buildPhase = ''
     bun run build
+  '';
+
+  postInstall = ''
+    wrapProgram $out/bin/iglu-controller \
+      --prefix PATH : ${lib.makeBinPath [ nix ]}
   '';
 
   startScript = ''
