@@ -32,7 +32,7 @@ export const env = createEnv({
     AUTH_TRUST_HOST: z.enum(["true", "false"]).optional().default("false"),
     DISABLE_BUILDER: z.enum(["true", "false"]).optional().default("false"),
     REDIS_URL: z.string(),
-    NODE_PSK: z.string()
+    NODE_PSK: z.string(),
   },
 
   /**

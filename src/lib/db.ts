@@ -1580,6 +1580,51 @@ export default class Database{
             return res.rows as Array<{user:User, caches:cache[], apikeys:keys[], signingkeys:Array<{public_signing_key:public_signing_keys[], signing_key_cache_api_link:signing_key_cache_api_link[]}>}>;
         })
     }
+    public async deleteUserByID(userID:string){
+        // First get the user
+        const user = await this.query(`
+            SELECT * FROM cache.users WHERE id = $1
+        `, [userID]).then((res)=>{
+            if(res.rows.length === 0){
+                throw new Error("User not found");
+            }
+            return res.rows[0] as User;
+        })
+        await this.query(`START TRANSACTION`)
+        // Then delete the users cache_user_link entries
+        await this.query(`
+            DELETE FROM cache.cache_user_link WHERE user_id = $1
+        `, [userID])
+
+        // Get the user's link entries to later be able to delete the signing keys
+        const link_entries = await this.query(`SELECT * FROM cache.signing_key_cache_api_link WHERE key_id IN (SELECT id FROM cache.keys WHERE user_id = $1)`, [userID]).then((res)=>{
+            return res.rows as signing_key_cache_api_link[]
+        })
+
+        // Then delete the users signing_key_cache_api_link entries
+        await this.query(`
+            DELETE FROM cache.signing_key_cache_api_link WHERE key_id IN (SELECT id FROM cache.keys WHERE user_id = $1)
+        `, [userID])
+
+        // Then delete the users api keys and signing keys
+        await this.query(`
+            DELETE FROM cache.keys WHERE user_id = $1
+        `, [userID])
+        for(const entry of link_entries){
+            await this.query(`
+                DELETE FROM cache.public_signing_keys WHERE id = $1
+            `, [entry.signing_key_id])
+        }
+
+        // Finally, delete the user
+        await this.query(`
+            DELETE FROM cache.users WHERE id = $1
+        `, [userID])
+
+        // Commit the transaction
+        await this.query(`COMMIT`)
+    }
+
     public async getAllBuildersPerCaches():Promise<Array<{"cache":cache, "builders":builder[] | null}>>{
         return this.query(`
             SELECT row_to_json(ca.*)  as cache,
@@ -1588,4 +1633,6 @@ export default class Database{
         `)
             .then((res)=> {return res.rows as Array<{"cache":cache, "builders":builder[] | null}>})
     }
+
+
 }

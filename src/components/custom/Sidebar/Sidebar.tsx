@@ -15,12 +15,14 @@ import {Button} from "@/components/ui/button";
 import {useSession} from "next-auth/react";
 import {Cog} from 'lucide-react'
 import {useEffect, useState} from "react";
-import {useSearchParams} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {api} from "@/trpc/react";
+import {router} from "next/client";
 export default function AppSidebar(){
     // We can be sure that the Session is available here because we check for this in the parent component before rendering this component.
     const session = useSession()
     const params = useSearchParams()
+    const router = useRouter()
     const cache = api.cache.byUser.useQuery()
     const cacheID = params.get("cacheID")
 
@@ -38,11 +40,15 @@ export default function AppSidebar(){
     }, [params]);
 
     useEffect(() => {
-      if(cache && cache.data){
-        setDropdownContent(
-          <CacheDropdown caches={cache.data}/>
-        )
-      }
+          if(cache && cache.data){
+              if(cache.data.length === 0) {
+                  router.push("/empty")
+                  return
+              }
+              setDropdownContent(
+                  <CacheDropdown caches={cache.data}/>
+              )
+          }
     }, [cache.data])
 
     return(

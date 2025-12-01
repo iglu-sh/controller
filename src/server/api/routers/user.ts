@@ -110,4 +110,31 @@ export const user = createTRPCRouter({
                 throw e;
             }
         }),
+    deleteUser: adminProcedure
+        .input(z.object({userID: z.string().uuid()}))
+        .mutation(async ({input})=>{
+            const db = new Database();
+            let success = true;
+            try{
+                await db.connect();
+                await db.deleteUserByID(input.userID);
+            }
+            catch(e){
+                Logger.error(`Failed to delete user: ${e}`);
+                success = false;
+            }
+            finally {
+                await db.disconnect()
+            }
+            return success;
+        }),
+    modifyUserApiKeyLink: adminProcedure
+        .input(z.object({
+                    "keyID": z.string(),
+                    "action": z.enum(["delete" , "removeFromUser"]),
+                    "userID": z.string().uuid()
+            }))
+        .mutation(async ({input})=>{
+
+        })
 });

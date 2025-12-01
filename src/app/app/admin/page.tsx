@@ -32,7 +32,7 @@ export default function AdminPage(){
                     <TabsTrigger value="config">Controller Config</TabsTrigger>
                 </TabsList>
                 <TabsContent value="caches">{everything.data ? <CachesTab everything={everything.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
-                <TabsContent value="users">{users.data ? <UsersTab users={users.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
+                <TabsContent value="users">{users.data ? <UsersTab users={users.data} refreshUsers={()=>users.refetch()} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
                 <TabsContent value="builders">{builders.data ? <BuildersTab builders={builders.data} /> : <LoaderCircle className="animate-spin" />}</TabsContent>
                 <TabsContent value="monitoring">Planned for the 1.0 Release! In the meantime: Check out our <Link href={"https://docs.iglu.sh/docs/Components/Iglu%20Cache#metrics"} className="text-primary">Prometheus Integration</Link></TabsContent>
                 <TabsContent value="config">{config.data ? <ConfigTab config={config.data} /> : <LoaderCircle className="animate-spin" /> }</TabsContent>

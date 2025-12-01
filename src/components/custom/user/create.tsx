@@ -17,7 +17,7 @@ import {api} from "@/trpc/react";
 import {toast} from "sonner";
 import {Toaster} from "@/components/ui/sonner";
 
-export default function CreateUser() {
+export default function CreateUser({finishCallback}:{finishCallback?: ()=>void}) {
     const [user, setUser] = useState({
         name: '',
         email: '',
@@ -37,6 +37,9 @@ export default function CreateUser() {
             }
             setPassword(data.user.password);
             setLoading(false);
+            if(finishCallback){
+                finishCallback();
+            }
         },
         onError: (error) => {
             setLoading(false);

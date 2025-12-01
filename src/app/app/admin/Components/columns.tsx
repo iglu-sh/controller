@@ -3,6 +3,10 @@ import type {builder, cache, keys, public_signing_keys, User, xTheEverythingType
 import {Button} from "@/components/ui/button";
 import type {signing_key_cache_api_link} from "@/types/db";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
+import {CacheDetails} from "@/app/app/admin/Components/cachesTab";
+import DeleteUser from "@/components/custom/user/delete";
+import {useSession} from "next-auth/react";
+import EditUser from "@/components/custom/user/edit";
 
 export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
     {
@@ -25,9 +29,7 @@ export const cachesColumns:ColumnDef<xTheEverythingType>[] = [
         cell: ({row}) => {
             return(
                 <div className="flex flex-row gap-2">
-                    <Button>
-                        View Details
-                    </Button>
+                    <CacheDetails cacheID={row.original.cache.id} row={row.original} />
                     <Button variant="secondary">
                         Edit Cache
                     </Button>
@@ -64,20 +66,32 @@ export const userColumns:ColumnDef<Array<{
         cell: ({row}:{row:any}) => (row.original.apikeys ?? []).length
     },
     {
+        accessorKey: "user.is_admin",
+        header: "Admin Privileges",
+        cell: ({row}:{row:any}) => row.original.user.is_admin ? "Yes" : "No"
+    },
+    {
         accessorKey: "user.id",
         header: "Actions",
         cell: ({row}:{row:any}) => {
+            const session = useSession()
             return(
                 <div className="flex flex-row gap-2">
-                    <Button>
-                        View Details
-                    </Button>
-                    <Button variant="secondary">
-                        Edit User
-                    </Button>
-                    <Button variant="destructive">
-                        Delete User
-                    </Button>
+                    <EditUser userData={row.original} />
+                    {
+                        session.data?.user?.id === row.original.user.id ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="destructive" disabled>
+                                        Delete User
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Don't delete yourself :(
+                                </TooltipContent>
+                            </Tooltip>
+                        ): <DeleteUser userID={row.original.user.id} />
+                    }
                 </div>
             )
         }

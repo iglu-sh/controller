@@ -4,8 +4,10 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {DataTable} from "@/components/custom/DataTable";
 import {userColumns} from "@/app/app/admin/Components/columns";
 import {Button} from "@/components/ui/button";
+import CreateUser from "@/components/custom/user/create";
+import {SessionProvider} from "next-auth/react";
 
-export default function UsersTab({users}:{users:Array<{
+export default function UsersTab({users, refreshUsers}:{users:Array<{
     user: User;
     caches: cache[];
     apikeys: keys[];
@@ -13,7 +15,8 @@ export default function UsersTab({users}:{users:Array<{
         public_signing_key: public_signing_keys[];
         signing_key_cache_api_link: signing_key_cache_api_link[]
     }>
-}>}){
+}>, refreshUsers: ()=>void}){
+
     return (
         <Card>
             <CardHeader className="flex flex-row gap-2 justify-between">
@@ -25,12 +28,19 @@ export default function UsersTab({users}:{users:Array<{
                         Manage your users here. Total Users: {users.length}
                     </CardDescription>
                 </div>
-                <Button>
-                    Add New User
-                </Button>
+                <div className="flex flex-row items-end-safe justify-end-safe gap-1">
+                    <SessionProvider>
+                        <CreateUser finishCallback={()=>refreshUsers()}/>
+                    </SessionProvider>
+                    <Button onClick={refreshUsers} variant="secondary">
+                        Refresh Users
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
-                <DataTable columns={userColumns} data={users} />
+                <SessionProvider>
+                    <DataTable columns={userColumns} data={users} />
+                </SessionProvider>
             </CardContent>
         </Card>
     )

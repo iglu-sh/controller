@@ -58,7 +58,8 @@ export const cache = createTRPCRouter({
             try {
                 await db.connect()
                 const availableCachesPerUser = await db.getCachesByUserId(ctx.session.user.id)
-                if(!availableCachesPerUser.find(c => c.id === input.cacheID)){
+                const user = await db.getUserById(ctx.session.user.id);
+                if(!availableCachesPerUser.find(c => c.id === input.cacheID) && !user?.is_admin){
                     throw new Error("You do not have access to this cache");
                 }
 
