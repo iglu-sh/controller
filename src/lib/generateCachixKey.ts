@@ -8,7 +8,7 @@ export default async function generateCachixKey():Promise<{private:`iglu-signing
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return new Promise(async (resolve, reject) =>{
         //Create the cachix signing key
-        const proc = Bun.spawn(["nix", "key", "generate-secret", "--key-name", "iglu-signing-key"],
+        const proc = Bun.spawn(["nix", "key", "generate-secret", "--key-name", "iglu-signing-key", "--extra-experimental-features", "nix-command"],
             {
                 onExit(proc, exitCode, signalCode, error){
                     if(error){
