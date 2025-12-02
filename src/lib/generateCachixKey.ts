@@ -22,7 +22,7 @@ export default async function generateCachixKey():Promise<{private:`iglu-signing
 
         //Generate the corresponding public key
         const procPublic = Bun.spawn({
-            cmd: ["nix", "key", "convert-secret-to-public"],
+            cmd: ["nix", "key", "convert-secret-to-public", "--extra-experimental-features", "nix-command"],
             stdin: Buffer.from(nixprivatekey, 'utf-8'),
             onExit(proc, exitCode, signalCode, error){
                 if(error){
