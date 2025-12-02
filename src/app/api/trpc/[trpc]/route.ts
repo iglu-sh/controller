@@ -18,6 +18,7 @@ const createContext = async (req: NextRequest) => {
 
 const handler = async (req: NextRequest) => {
     if (req.method === "OPTIONS") {
+        res.headers.delete("transfer-encoding")
         return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
     }
 
@@ -39,7 +40,7 @@ const handler = async (req: NextRequest) => {
     Object.entries(CORS_HEADERS).forEach(([key, value]) => {
         response.headers.set(key, value);
     });
-
+    response.headers.delete("transfer-encoding");
     return response;
 };
 

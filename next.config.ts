@@ -11,7 +11,7 @@ import Logger from "@iglu-sh/logger";
 /** @type {import("next").NextConfig} */
 const config = {
     allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', "10.0.0.72", "*"],
-
+    compress: false,
 
     //////////////////////////////////////////////////////////////////////////
     // TODO: THIS HAS TO BE REMOVED IN THE NEAR FEATURE (TODAY: 27.11.2025) //
