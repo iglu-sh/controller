@@ -14,7 +14,7 @@
     "preview": "next build && next start",
     "start": "bun --bun run next start",
     "typecheck": "tsc --noEmit",
-    "__postinstall": "bunx bun2nix -o ./nix/pkgs/iglu-controller/bun.nix && deadnix -e ./nix/pkgs/iglu-controller/bun.nix && nixpkgs-fmt ./nix/pkgs/iglu-controller/bun.nix"
+    "postinstall": "bunx bun2nix -o ./nix/pkgs/iglu-controller/bun.nix && deadnix -e ./nix/pkgs/iglu-controller/bun.nix && nixpkgs-fmt ./nix/pkgs/iglu-controller/bun.nix"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
