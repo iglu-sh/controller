@@ -7,15 +7,13 @@ This file should be placed in the root directory of the project and should conta
 ```dotenv
 NEXT_PUBLIC_CACHE_URL=http://localhost:3000
 LOG_LEVEL=DEBUG
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=cache
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=cache
 LOGGER_USE_ENV=true
 LOGGER_JSON=false
-LOGGER_PREFIX="[Controller]"
-LOGGER_PREFIX_COLOR="MAGENTA"
 AUTH_SECRET=your_auth_secret
 ```
 We recommend setting all the LOGGER_ variables like we have set them here, but you can customize them as per your requirements.

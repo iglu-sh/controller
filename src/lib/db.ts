@@ -1,6 +1,7 @@
 import {Client, type QueryResult} from "pg";
 import Logger from "@iglu-sh/logger";
 import {createClient} from "redis";
+import { env } from "@/env";
 import type {
     apiKeyWithCache,
     cache, git_configs,
@@ -36,11 +37,11 @@ export default class Database{
 
     constructor() {
         this.client = new Client({
-            user: process.env.DB_USER,
-            host: process.env.DB_HOST,
-            database: process.env.DB_NAME,
-            password: process.env.DB_PASSWORD,
-            port: parseInt(process.env.DB_PORT ?? "5432", 10),
+            user: env.POSTGRES_USER,
+            host: env.POSTGRES_HOST,
+            database: env.POSTGRES_DB,
+            password: env.POSTGRES_PASSWORD,
+            port: parseInt(env.POSTGRES_PORT, 10),
         })
     }
     private async wrap(cl: Database){
@@ -287,7 +288,7 @@ export default class Database{
         Logger.debug('Database tables set up successfully');
 
         // if the DISABLE_BUILDER environment variable is set to false, we can create a cron update to check the health of the nodes
-        if(!process.env.DISABLE_BUILDERS || process.env.DISABLE_BUILDERS === 'false'){
+        if(!env.DISABLE_BUILDERS || env.DISABLE_BUILDERS === 'false'){
             Logger.debug('Creating cron update for builder health check');
 
             await this.query(`
@@ -310,8 +311,8 @@ export default class Database{
                 SELECT cron.schedule('healthcheck','* * * * *', $$
                     SELECT * FROM http((
                        'GET',
-                       '${process.env.NEXT_PUBLIC_URL}/api/v1/node/healthcheck',
-                       ARRAY[http_header('Authorization', '${process.env.NODE_PSK}')],
+                       '${env.NEXT_PUBLIC_URL}/api/v1/node/healthcheck',
+                       ARRAY[http_header('Authorization', '${env.NODE_PSK}')],
                        NULL,
                        NULL
                     )::http_request); 
@@ -319,23 +320,17 @@ export default class Database{
                 SELECT cron.schedule('redisTasks','* * * * *', $$
                     SELECT * FROM http((
                        'GET',
-                       '${process.env.NEXT_PUBLIC_URL}/api/v1/tasks/redis',
-                       ARRAY[http_header('Authorization', '${process.env.NODE_PSK}')],
+                       '${env.NEXT_PUBLIC_URL}/api/v1/tasks/redis',
+                       ARRAY[http_header('Authorization', '${env.NODE_PSK}')],
                        NULL,
                        NULL
                     )::http_request); 
                 $$);
             `)
         }
-
-        // Redis Setup
-        // TODO: Move this out of here, wtf
-        if(!process.env.REDIS_URL){
-            return
-        }
         // Deregister all nodes that may still be connected
         const editor = createClient({
-            url: process.env.REDIS_URL
+            url: `redis://${env.REDIS_USER}:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}`
         })
         await editor.connect().catch((err:Error)=>{
             Logger.error(`Failed to connect to Redis editor: ${err.message}`);
@@ -802,7 +797,7 @@ export default class Database{
             })
     }
     // Mainly used for the OOB experience, and it should not be used outside of that
-    // It does require a lot of processing power, so it should only be used when necessary
+    // It does require a lot of ng power, so it should only be used when necessary
     public async getEverything():Promise<Array<xTheEverythingType>>{
         return await this.query(`
             SELECT row_to_json(ca.*) as cache,
@@ -984,7 +979,7 @@ export default class Database{
             INSERT INTO cache.caches (githubusername, ispublic, name, permission, preferredcompressionmethod, uri)
             VALUES ('', $1, $2, $3, $4, $5)
             RETURNING *
-        `, [cacheToCreate.ispublic, cacheToCreate.name, cacheToCreate.permission, cacheToCreate.preferredcompressionmethod, process.env.NEXT_PUBLIC_CACHE_URL!], userID as uuid)
+        `, [cacheToCreate.ispublic, cacheToCreate.name, cacheToCreate.permission, cacheToCreate.preferredcompressionmethod, env.NEXT_PUBLIC_CACHE_URL!], userID as uuid)
             .then((res)=>{
                 if(res.rows.length === 0){
                     throw new Error("Unknown error while creating cache");
