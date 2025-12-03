@@ -6,13 +6,14 @@ import type {arch, BuildChannelMessage, BuildQueueMessage} from "@iglu-sh/types/
 import type {builder_runs, combinedBuilder} from "@iglu-sh/types/core/db";
 import Database from "@/lib/db";
 import {EventEmitter} from "node:events";
+import { env } from "@/env";
 
 export default class Redis{
     private redisClient:RedisClientType
     constructor() {
         Logger.debug("Constructing Redis Client");
         this.redisClient = createClient({
-            url: process.env.REDIS_URL
+            url: `redis://${env.REDIS_USER}:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}` 
         })
         this.redisClient.on('error', (err) => Logger.error(`Redis Client Error ${err}`));
         void this.redisClient.connect().then(()=>{
@@ -134,14 +135,14 @@ export default class Redis{
                 gitcommit: "unknown",
                 duration: "null",
                 ended_at: new Date(),
-                log: JSON.stringify({stdout: "No nodes are currently connected to the controller, cannot process build job.", jobStatus: "failed"}),
+                log: JSON.stringify({stdout: "No nodes are currently connected to the controller, cannot build job.", jobStatus: "failed"}),
             }
             // Write the dummy run to redis so that the system is aware of it
             await this.redisClient.json.set(`run:${jobID}`, '.', dummyRun)
             await this.stopJob("failed", jobID)
 
-            // Throw to make sure the caller knows the job could not be processed
-            throw new Error("No nodes are currently connected to the controller, cannot process build job.")
+            // Throw to make sure the caller knows the job could not be d
+            throw new Error("No nodes are currently connected to the controller, cannot build job.")
         }
 
         // Get the builder from Redis to see if it exists

@@ -221,28 +221,28 @@ export const admin = createTRPCRouter({
                         description: "The environment the controller is running in (development/production). For you, this should always be 'production'."
                     },
                     {
-                        envVar: "DB_USER",
-                        value: environment.DB_USER,
+                        envVar: "POSTGRES_USER",
+                        value: environment.POSTGRES_USER,
                         description: "The database user the controller uses to connect to the database."
                     },
                     {
-                        envVar: "DB_PASSWORD",
-                        value: environment.DB_PASSWORD ? "********" : null,
+                        envVar: "POSTGRES_PASSWORD",
+                        value: environment.POSTGRES_PASSWORD ? "********" : null,
                         description: "The database password the controller uses to connect to the database."
                     },
                     {
-                        envVar: "DB_HOST",
-                        value: environment.DB_HOST,
+                        envVar: "POSTGRES_HOST",
+                        value: environment.POSTGRES_HOST,
                         description: "The database host the controller uses to connect to the database."
                     },
                     {
-                        envVar: "DB_PORT",
-                        value: environment.DB_PORT,
+                        envVar: "POSTGRES_PORT",
+                        value: environment.POSTGRES_PORT,
                         description: "The database port the controller uses to connect to the database."
                     },
                     {
-                        envVar: "DB_NAME",
-                        value: environment.DB_NAME,
+                        envVar: "POSTGRES_DB",
+                        value: environment.POSTGRES_DB,
                         description: "The database name the controller uses to connect to the database. This database must already exist (this is done by the Iglu Cache which you should have deployed before starting the controller)."
                     },
                     {
@@ -281,10 +281,25 @@ export const admin = createTRPCRouter({
                         description: "The pre-shared key used for node-to-controller communication. A node is any Iglu Scheduler Instance which can spin up builders. This key must be the same on all schedulers and the controller."
                     },
                     {
-                        envVar: "REDIS_URL",
-                        value: environment.REDIS_URL,
-                        description: "The Redis URL used for caching and communication between the controller and schedulers/builders. This is only needed if you have not disabled the builder functionality."
+                        envVar: "REDIS_HOST",
+                        value: environment.REDIS_HOST,
+                        description: "The hostname or IP address of the Redis server used for caching and communication between the controller and schedulers/builders."
                     },
+                    {
+                        envVar: "REDIS_USER",
+                        value: environment.REDIS_USER,
+                        description: "The username to use when connecting to the Redis server. Leave empty if authentication is not required or if only password authentication is used."
+                    },
+                    {
+                        envVar: "REDIS_PASSWORD",
+                        value: environment.REDIS_PASSWORD ? "********" : null,
+                        description: "The password to use when connecting to the Redis server. Leave empty if no authentication is configured."
+                    },
+                    {
+                        envVar: "REDIS_PORT",
+                        value: environment.REDIS_PORT,
+                        description: "The port number of the Redis server. Default is 6379 if not specified."
+                    }
                 ],
                 client: [
                     {

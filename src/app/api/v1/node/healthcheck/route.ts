@@ -16,10 +16,10 @@ export async function GET(req:NextRequest, res:NextResponse){
     Logger.debug('Asking for healthcheck');
 
     const editor = redis.createClient({
-        url: process.env.REDIS_URL
+        url: `redis://${env.REDIS_USER}:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}`
     })
     const subscriber = redis.createClient({
-        url: process.env.REDIS_URL
+        url: `redis://${env.REDIS_USER}:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}`
     })
 
     // Handle Redis connection errors
