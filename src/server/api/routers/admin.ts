@@ -319,5 +319,19 @@ export const admin = createTRPCRouter({
                     }
                 ]
             }
+        }),
+    removePublicSigningKey: adminProcedure
+        .input(z.object({publicSigningKeyId: z.string(), apiKeyId: z.string()}))
+        .mutation(async ({input}) => {
+            const db = new Database()
+            try{
+
+            }
+            catch(e){
+
+            }
+            finally{
+                await db.disconnect()
+            }
         })
 });

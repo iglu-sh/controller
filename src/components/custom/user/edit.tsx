@@ -8,6 +8,7 @@ import {api} from "@/trpc/react";
 import {toast} from "sonner";
 import type {ColumnDef} from "@tanstack/react-table";
 import {DataTable} from "@/components/custom/DataTable";
+import RemovePublicSigningKey from "@/components/custom/user/removePublicSigningKey";
 
 const editUserApiKeyColumns:ColumnDef<{
     apiKey: keys
@@ -42,6 +43,7 @@ const editUserApiKeyColumns:ColumnDef<{
 ]
 const editUserPSKKeyColumns:ColumnDef<{
     apiKeyName: string,
+    apiKeyId: string,
     psk: public_signing_keys,
 }>[] = [
     {
@@ -67,7 +69,7 @@ const editUserPSKKeyColumns:ColumnDef<{
         cell: ({row}) => {
             return (
                 <div className="flex flex-row gap-2">
-                    <Button variant="destructive">Delete</Button>
+                    <RemovePublicSigningKey apiKeyId={row.original.apiKeyId} publicSigningKeyId={row.original.psk.id.toString()} />
                 </div>
             )
         }
@@ -124,10 +126,11 @@ export default function EditUser({
         apiKeyName: string,
         psk: public_signing_keys,
     }[] = cleanedApiKeys.flatMap((key)=>{
-        let returnArray:{apiKeyName: string, psk: public_signing_keys}[] = []
+        const returnArray:{apiKeyName: string, apiKeyId:string, psk: public_signing_keys}[] = []
         key.signingkeys.forEach((psk)=>{
             returnArray.push({
                 apiKeyName: key.apiKey.name,
+                apiKeyId: key.apiKey.id.toString(),
                 psk: psk
             })
         })
