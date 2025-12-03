@@ -10,71 +10,8 @@ import type {ColumnDef} from "@tanstack/react-table";
 import {DataTable} from "@/components/custom/DataTable";
 import RemovePublicSigningKey from "@/components/custom/user/removePublicSigningKey";
 
-const editUserApiKeyColumns:ColumnDef<{
-    apiKey: keys
-    signingkeys: public_signing_keys[]
-    callback: (key: string, action: ("delete" | "removeFromUser"), target: ("apiKey" | "signingKey"), signingKey?: string) => void
-}[]>[] = [
-    {
-        accessorKey: "apiKey.name",
-        header: "Name",
-        cell: info => info.getValue()
-    },
-    {
-        accessorKey: "apiKey.description",
-        header: "Key",
-        cell: info => info.getValue()
-    },
-    {
-        accessorKey: "apiKey.created_at",
-        header: "Created At",
-    },
-    {
-        accessorKey: "apiKey.id",
-        header: "Actions",
-        cell: ({row}) => {
-            return (
-                <div className="flex flex-row gap-2">
-                    <Button variant="destructive">Delete</Button>
-                </div>
-            )
-        }
-    }
-]
-const editUserPSKKeyColumns:ColumnDef<{
-    apiKeyName: string,
-    apiKeyId: string,
-    psk: public_signing_keys,
-}>[] = [
-    {
-        accessorKey: "psk.name",
-        header: "Name",
-        cell: info => info.getValue()
-    },
-    {
-        accessorKey: "apiKeyName",
-        header: "API Key used during creation"
-    },
-    {
-        accessorKey: "psk.description",
-        header: "Description",
-    },
-    {
-        accessorKey: "psk.created_at",
-        header: "Created At",
-    },
-    {
-        accessorKey: "apiKey.id",
-        header: "Actions",
-        cell: ({row}) => {
-            return (
-                <div className="flex flex-row gap-2">
-                    <RemovePublicSigningKey apiKeyId={row.original.apiKeyId} publicSigningKeyId={row.original.psk.id.toString()} />
-                </div>
-            )
-        }
-    }
-]
+
+
 
 
 export default function EditUser({
@@ -90,6 +27,7 @@ export default function EditUser({
         }
     }
 }){
+
     const modifyUserKeyLinks = api.user.modifyUserApiKeyLink.useMutation(
         {
             onSuccess: ()=>{
@@ -105,6 +43,14 @@ export default function EditUser({
         signingkeys: public_signing_keys[];
         callback: (key: string, action: ("delete" | "removeFromUser"), target: ("apiKey" | "signingKey"), signingKey?: string) => void
     }[] = userData.apikeys.map(key => {
+        // If the user has no signing keys, return empty array
+        if(!userData.signing_keys.public_signing_key){
+            return {
+                apiKey: key,
+                signingkeys: [],
+                callback: (key:string, action:"delete" | "removeFromUser", target: "apiKey" | "signing")=>{}
+            }
+        }
         const matchingSigningKeys = userData.signing_keys.public_signing_key.filter((psk)=>{
             return userData.signing_keys.signing_key_cache_api_link.some((link: { key_id: number; }) => link.key_id === key.id);
         })
@@ -136,6 +82,82 @@ export default function EditUser({
         })
         return returnArray
     })
+    const editUserApiKeyColumns:ColumnDef<{
+        apiKey: keys
+        signingkeys: public_signing_keys[]
+        callback: (key: string, action: ("delete" | "removeFromUser"), target: ("apiKey" | "signingKey"), signingKey?: string) => void
+    }[]>[] = [
+        {
+            accessorKey: "apiKey.name",
+            header: "Name",
+            cell: info => info.getValue()
+        },
+        {
+            accessorKey: "apiKey.description",
+            header: "Key",
+            cell: info => info.getValue()
+        },
+        {
+            accessorKey: "apiKey.created_at",
+            header: "Created At",
+        },
+        {
+            accessorKey: "apiKey.id",
+            header: "Actions",
+            cell: ({row}) => {
+                return (
+                    <div className="flex flex-row gap-2">
+                        <Button variant="secondary">Regenerate Key</Button>
+                        <Button variant="destructive">Delete</Button>
+                    </div>
+                )
+            }
+        }
+    ]
+    const editUserPSKKeyColumns:ColumnDef<{
+        apiKeyName: string,
+        apiKeyId: string,
+        psk: public_signing_keys,
+    }>[] = [
+        {
+            accessorKey: "psk.name",
+            header: "Name",
+            cell: info => info.getValue()
+        },
+        {
+            accessorKey: "apiKeyName",
+            header: "API Key used during creation"
+        },
+        {
+            accessorKey: "psk.description",
+            header: "Description",
+        },
+        {
+            accessorKey: "psk.created_at",
+            header: "Created At",
+        },
+        {
+            accessorKey: "apiKey.id",
+            header: "Actions",
+            cell: ({row}) => {
+                return (
+                    <div className="flex flex-row gap-2">
+                        <RemovePublicSigningKey
+                            publicSigningKeyId={row.original.psk.id.toString()}
+                            keyDeleteCallback={(id:string)=>{
+                                // Remove the PSK from the table UI
+                                const index = cleanedPSKKeys.findIndex((psk)=> psk.psk.id.toString() === id);
+                                if(index !== -1){
+                                    cleanedPSKKeys.splice(index, 1);
+                                }
+                            }}
+                        />
+                    </div>
+                )
+            }
+        }
+    ]
+
     return(
         <Dialog>
             <DialogTrigger asChild>

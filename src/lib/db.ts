@@ -1629,5 +1629,16 @@ export default class Database{
             .then((res)=> {return res.rows as Array<{"cache":cache, "builders":builder[] | null}>})
     }
 
-
+    public async removePublicSigningKey(publicSigningKeyId:string):Promise<void>{
+        // First, delete the cache-key-signingkey link
+        await this.query(`START TRANSACTION;`)
+        await this.query(`
+            DELETE FROM cache.signing_key_cache_api_link WHERE signing_key_id = $1
+        `, [publicSigningKeyId])
+        // Delete the public signing key itself
+        await this.query(`
+            DELETE FROM cache.public_signing_keys WHERE id = $1
+        `, [publicSigningKeyId])
+        await this.query(`COMMIT;`)
+    }
 }

@@ -321,14 +321,18 @@ export const admin = createTRPCRouter({
             }
         }),
     removePublicSigningKey: adminProcedure
-        .input(z.object({publicSigningKeyId: z.string(), apiKeyId: z.string()}))
+        .input(z.object({publicSigningKeyId: z.string()}))
         .mutation(async ({input}) => {
+            Logger.debug(`Removing public signing key with ID ${input.publicSigningKeyId} via Admin TRPC`);
             const db = new Database()
             try{
-
+                await db.connect()
+                await db.removePublicSigningKey(input.publicSigningKeyId)
             }
             catch(e){
-
+                Logger.error(`Failed to remove public signing key: ${e}`);
+                await db.disconnect()
+                await Promise.reject(new Error(`Failed to remove public signing key: ${e}`));
             }
             finally{
                 await db.disconnect()

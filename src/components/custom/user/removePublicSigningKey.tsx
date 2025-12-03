@@ -7,12 +7,31 @@ import {
     AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import {Button} from "@/components/ui/button";
+import {api} from "@/trpc/react";
+import {useEffect, useState} from "react";
+import {toast} from "sonner";
+import {LoaderCircle} from "lucide-react";
 
-export default function RemovePublicSigningKey({publicSigningKeyId, apiKeyId}:{publicSigningKeyId:string, apiKeyId:string}){
-
+export default function RemovePublicSigningKey({publicSigningKeyId, keyDeleteCallback}:{publicSigningKeyId:string, keyDeleteCallback: (id:string)=>void}){
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const removePSK = api.admin.removePublicSigningKey.useMutation(
+        {
+            onSuccess: () => {
+                setLoading(false)
+                toast.success("Successfully removed public signing key!");
+                keyDeleteCallback(publicSigningKeyId)
+                setOpen(false)
+            },
+            onError: (error) => {
+                setLoading(false)
+                toast.error(`Failed to remove public signing key: ${error.message}`);
+            }
+        }
+    )
     return(
-        <AlertDialog>
-            <AlertDialogTrigger>
+        <AlertDialog open={open} onOpenChange={()=>setOpen(!open)}>
+            <AlertDialogTrigger asChild>
                 <Button variant="destructive">
                     Delete
                 </Button>
@@ -36,9 +55,16 @@ export default function RemovePublicSigningKey({publicSigningKeyId, apiKeyId}:{p
                             Cancel
                         </Button>
                     </AlertDialogCancel>
-                    <Button variant="destructive">
-                        Do it!
-                    </Button>
+                    {
+                        loading ? (
+                            <Button variant="destructive" disabled>
+                                <LoaderCircle className="animate-spin" />
+                            </Button>
+                        ) : <Button variant="destructive" onClick={()=>{
+                            setLoading(true)
+                            removePSK.mutate({publicSigningKeyId: publicSigningKeyId})
+                        }}>Do it!</Button>
+                    }
                 </div>
             </AlertDialogContent>
         </AlertDialog>
