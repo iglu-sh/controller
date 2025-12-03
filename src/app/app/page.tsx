@@ -1,6 +1,6 @@
 'use client'
 import {auth} from "@/server/auth";
-import {redirect, useParams, useSearchParams} from "next/navigation";
+import {useRouter, redirect, useParams, useSearchParams} from "next/navigation";
 import {useState} from "react";
 import {useEffect} from "react";
 import {api} from "@/trpc/react";
@@ -13,7 +13,6 @@ import {
     HardDrive, Network,
     Package,
     RefreshCcw,
-    Settings,
     SettingsIcon,
     Users,
     Zap
@@ -26,6 +25,11 @@ export default function App(){
     const params = useSearchParams()
     const cacheID = params.get("cacheID");
     const [size, setSize] = useState<number>(0)
+
+    const router = useRouter()
+    const handler = async (path: string) => {
+      router.push(path + "?" + params.toString())
+    }
 
     // Fetch the selected cache
     const cache = api.cache.getOverview.useQuery({
@@ -128,7 +132,7 @@ export default function App(){
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                    <Button onClick={() => handler("/app/settings")} variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
                         <div className="flex flex-col gap-2">
                             <div className="flex flex-row gap-2 items-center">
                                 <SettingsIcon size={18} />
@@ -139,7 +143,7 @@ export default function App(){
                             </div>
                         </div>
                     </Button>
-                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                    <Button onClick={() => handler("/app/admin")} variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
                         <div className="flex flex-col gap-2">
                             <div className="flex flex-row gap-2 items-center">
                                 <Users size={18} />
@@ -150,7 +154,7 @@ export default function App(){
                             </div>
                         </div>
                     </Button>
-                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                    <Button onClick={() => handler("/app/storage")} variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
                         <div className="flex flex-col gap-2">
                             <div className="flex flex-row gap-2 items-center">
                                 <Database />
@@ -161,7 +165,7 @@ export default function App(){
                             </div>
                         </div>
                     </Button>
-                    <Button variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
+                    <Button onClick={() => handler("/app/builders")} variant="outline" className="flex flex-row items-center gap-1 justify-start h-20">
                         <div className="flex flex-col gap-2">
                             <div className="flex flex-row gap-2 items-center">
                                 <Hammer />
