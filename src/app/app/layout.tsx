@@ -27,8 +27,10 @@ export default async function AppLayout({
     }
     const mustShowOOB = await api.user.mustShowOOB(session?.user.session_user.id)
     const user = await api.user.getUser().catch(async ()=>{
-        // Redirect the user to the sign-in page if the user is not found
-        redirect("/api/auth/signin")
+        // If the user is not found, redirect the user to the sign-out page
+        // to clear session after that redirect to sign-in page if the user
+        // is not found
+        redirect("/auth/signout?forced=true")
     })
     if(!user){
         redirect("/")

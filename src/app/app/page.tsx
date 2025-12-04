@@ -27,7 +27,7 @@ export default function App(){
     const [size, setSize] = useState<number>(0)
 
     const router = useRouter()
-    const handler = async (path: string) => {
+    const handler = (path: string) => {
       router.push(path + "?" + params.toString())
     }
 
