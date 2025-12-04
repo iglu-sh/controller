@@ -1244,7 +1244,7 @@ export default class Database{
 
     }
 
-    public async appendApiKey(cache:number, key:string):Promise<keys> {
+    public async appendApiKey(cache:number, key:string, name?:string):Promise<keys> {
         //Hash the key
         const hasher = new Bun.CryptoHasher("sha512");
         hasher.update(key)
@@ -1252,7 +1252,7 @@ export default class Database{
         const result:QueryResult<keys> = await this.query(`
             INSERT INTO cache.keys (name, description, hash) VALUES ($1, $2, $3)
                 RETURNING *;
-        `, ["Starting Key", "With love from the Iglu team", hash]) as QueryResult<keys>
+        `, [name ?? "Starting Key", "With love from the Iglu team", hash]) as QueryResult<keys>
         if(result.rows.length ===  0 || !result.rows[0]?.id){
             throw new Error('Error whilst creating key')
         }
@@ -1330,7 +1330,7 @@ export default class Database{
         }
         Logger.debug(`Builder with ID ${builderId} deleted successfully`);
     }
-    public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean):Promise<public_signing_keys|void>{
+    public async appendPublicKey(id:number, key:string, apiKey:string, bypassHasher?:boolean, name?:string):Promise<public_signing_keys|void>{
         const hashedKey = new Bun.CryptoHasher("sha512")
         hashedKey.update(apiKey)
         let hash = hashedKey.digest("hex")
@@ -1374,7 +1374,7 @@ export default class Database{
                 INSERT INTO cache.public_signing_keys (name, key, description) 
                 VALUES ($1, $2, $3)
                 RETURNING *
-            `, ["Cachix Key", key, "Key uploaded by Cachix"]) as QueryResult<public_signing_keys>
+            `, [name ?? "Cachix Key", key, "Key uploaded by Cachix"]) as QueryResult<public_signing_keys>
 
             //Insert the key into the signing key cache api link table
             await this.query(`

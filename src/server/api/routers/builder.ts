@@ -46,13 +46,16 @@ export const builder = createTRPCRouter({
                 const apiKey = await db.appendApiKey(
                     input.builder.cache_id,
                     plaintextKey,
+                    `__[IGLU_BULDER] Builder Key for builder ${input.builder.name}`
                 )
 
                 // Append the signing key to cachix
                 const signingKey = await db.appendPublicKey(
                     input.builder.cache_id,
                     keyPair.public,
-                    plaintextKey
+                    plaintextKey,
+                    false,
+                    `__[IGLU_BUILDER] Signing Key for builder ${input.builder.name}`
                 )
 
                 // Add everything to the input object

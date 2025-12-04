@@ -15,7 +15,6 @@ import {useSearchParams} from "next/navigation";
 export default function CreatePage(){
     const [loading, setLoading] = useState<boolean>(false);
     const params = useSearchParams()
-    const randomUUID = '' as uuid;
     const [config, setConfig] = useState<combinedBuilder>({
         builder: {
             id: -1,
@@ -32,6 +31,8 @@ export default function CreatePage(){
             id: -1,
             builder_id: -1,
             push: true,
+            apikeyid: -1,
+            signingkeyid: -1,
             target: params.get('cacheID') ? parseInt(params.get('cacheID')!) : -1, // Target cache?
             apikey: '',
             signingkey: '',

@@ -21,12 +21,9 @@ export default function Builders(){
     const cacheID = searchParams.get("cacheID");
 
     const nodes = api.builder.getRegisteredNodes.useQuery()
-    const disableBuilder = !nodes.data || nodes.data?.length === 0
-
     const router = useRouter()
-
     const createHandler = () => {
-      router.push("/app/builders/create?cacheID=$" + (cacheID ?? ''))
+      router.push(`/app/builders/create?cacheID=${cacheID ?? '-1'}`)
     }
 
     return(
@@ -41,7 +38,7 @@ export default function Builders(){
                     </div>
                 </div>
                 <div className="flex items-center">
-                    <Button onClick={createHandler} disabled={disableBuilder}>Create new Builder</Button>
+                    <Button onClick={createHandler}>Create new Builder</Button>
                 </div>
             </div>
             {
