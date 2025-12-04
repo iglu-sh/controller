@@ -1,13 +1,19 @@
 'use client'
 import {signOut} from "next-auth/react";
-import {useEffect, useState} from "react";
+import {Suspense, useEffect, useState} from "react";
 import Link from "next/link";
 import {Button} from "@/components/ui/button";
+import {useParams} from "next/navigation";
 
 export default function SignOutPage(){
+    const params = useParams<{forced: string}>()
     useEffect(() => {
         if(window){
-            void signOut({redirect: false})
+          // this is needed to fix infinity redirect bug if creds are not valid
+          if(params.forced === "true"){
+            void signOut({redirectTo: "/auth/signin", redirect: true})
+          }
+          void signOut({redirect: false})
         }
     }, []);
     return(

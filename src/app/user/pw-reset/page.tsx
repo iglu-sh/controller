@@ -33,7 +33,8 @@ export default function Page(){
             toast.error("Ther was an error changing your password, please try again.");
         }
     })
-    function handleSubmit(){
+    function handleSubmit(event: Event){
+        event.preventDefault()
         if(!newPW.current || !repeatPW.current || !oldPW.current){
             toast.error("Please fill in all fields.");
             return;
@@ -55,6 +56,7 @@ export default function Page(){
             newPassword: newPW.current.value,
             repeatPassword: repeatPW.current.value
         });
+
     }
     return (
         <div className="flex justify-center items-center h-screen">
@@ -68,6 +70,7 @@ export default function Page(){
                     <CardDescription>
                         You must reset your password before you can continue.
                     </CardDescription>
+                    <form onSubmit={handleSubmit}>
                     <div className="flex flex-col gap-2">
                         <label htmlFor="current-password">Current Password</label>
                         <Input
@@ -90,8 +93,9 @@ export default function Page(){
                             name="repeat-password"
                             ref={repeatPW}
                         />
+                        <Button type="submit">Change Password</Button>
                     </div>
-                    <Button type="submit" onClick={handleSubmit}>Change Password</Button>
+                  </form>
                 </CardContent>
             </Card>
             <Toaster richColors={true} />
