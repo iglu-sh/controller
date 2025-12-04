@@ -10,6 +10,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger} from "@/components/ui/
 import type {ColumnDef} from "@tanstack/react-table";
 import type {public_signing_keys} from "@/types/db";
 import {DataTable} from "@/components/custom/DataTable";
+import {Button} from "@/components/ui/button";
 
 const PSKColumns:ColumnDef<public_signing_keys>[] = [
     {
@@ -33,7 +34,7 @@ const PSKColumns:ColumnDef<public_signing_keys>[] = [
 ]
 export default function Performance(){
   return(
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 mb-5">
         <div className="flex flex-col">
             <h1 className="text-3xl font-bold">
             Settings
@@ -158,6 +159,9 @@ export default function Performance(){
                 </div>
             </CardContent>
         </Card>
+        <Button>
+            Save Settings
+        </Button>
     </div>
   )
 }
