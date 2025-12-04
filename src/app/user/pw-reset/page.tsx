@@ -93,6 +93,7 @@ export default function Page(){
                             name="repeat-password"
                             ref={repeatPW}
                         />
+                        <Button type="submit">Change Password</Button>
                     </div>
                     <Button type="submit">Change Password</Button>
                   </form>
