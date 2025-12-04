@@ -95,7 +95,6 @@ export default function Page(){
                         />
                         <Button type="submit">Change Password</Button>
                     </div>
-                    <Button type="submit">Change Password</Button>
                   </form>
                 </CardContent>
             </Card>
