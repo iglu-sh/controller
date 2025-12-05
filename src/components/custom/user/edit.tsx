@@ -12,7 +12,9 @@ import {DataTable} from "@/components/custom/DataTable";
 import RemovePublicSigningKey from "@/components/custom/user/removePublicSigningKey";
 
 export default function EditUser({
-    userData
+    userData,
+    variant = "secondary",
+    text = "Edit User"
                                  }:{
     userData: {
         user: User;
@@ -22,8 +24,11 @@ export default function EditUser({
             public_signing_key: public_signing_keys[];
             signing_key_cache_api_link: signing_key_cache_api_link[]
         }[]
-    }
+    },
+    variant: string,
+    text: string
 }){
+    
 
     const modifyUserKeyLinks = api.user.modifyUserApiKeyLink.useMutation(
         {
@@ -158,14 +163,14 @@ export default function EditUser({
     return(
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="secondary">
-                    Edit User
+                <Button variant={variant}>
+                {text} 
                 </Button>
             </DialogTrigger>
             <DialogContent className="flex flex-col gap-4">
                 <DialogHeader>
                     <DialogTitle>
-                        Edit User
+                        {text} 
                     </DialogTitle>
                 </DialogHeader>
                 <div className="flex flex-col gap-2">

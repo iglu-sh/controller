@@ -1,11 +1,13 @@
 'use client'
-import { Dot, User } from "lucide-react";
+import { Database, Dot, Hammer, User } from "lucide-react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {api} from "@/trpc/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {Badge} from "@/components/ui/badge";
 import EditUser from "@/components/custom/user/edit";
 import {SessionProvider, useSession} from "next-auth/react";
+import { DataTable } from "@/components/custom/DataTable";
+import { Button } from "@/components/ui/button";
 
 export default function UserPageSessionWrapper(){
     return(
@@ -15,18 +17,18 @@ export default function UserPageSessionWrapper(){
     )
 }
 export function UserPage(){
-    const session = useSession()
-    const sessionData = session.data ? session.data.user.session_user : null
+  const session = useSession()
+  const sessionData = session.data ? session.data.user.session_user : null
   const caches_api = api.cache.byUser.useQuery()
-    const caches = caches_api.data
+  const caches = caches_api.data
   const keys_api = api.user.getApiKeys.useQuery()
-    const keys = keys_api.data
+  const keys = keys_api.data
 
   const {data} = api.user.getUserWithKeysAndCaches.useQuery()
 
   return(
     <div className="w-full flex flex-col gap-4">
-      <div className="flex flex-row justify-betweeni items-center w-full">
+      <div className="flex flex-row justify-between items-center w-full">
         <div className="flex flex-col">
           <h1 className="text-3xl font-bold">
             Profile
@@ -37,7 +39,7 @@ export function UserPage(){
         </div>
         <div className="flex flex-row gap-2">
             {
-                data?.[0] ? <EditUser userData={data[0]} /> : <></>
+                data?.[0] ? <EditUser text="Edit" variant="default" userData={data[0]} /> : <></>
             }
         </div>
       </div>
@@ -51,25 +53,47 @@ export function UserPage(){
           </CardHeader>
           <CardContent className="grid grid-cols-[min-content_1fr] gap-10">
             <Avatar className="w-30 h-30">
-                <AvatarFallback style={{backgroundColor: session.data ? session.data.user.session_user.avatar_color : "#000000", color: "white"}} >
-                    {session.data ? session.data.user.session_user.username : "U"}
+                <AvatarFallback style={{backgroundColor: session.data ? session.data.user.session_user.avatar_color : "#000000", fontSize: "5rem" }} >
+                    {session.data ? session.data.user.session_user.username.charAt(0) : "U"}
                 </AvatarFallback>
             </Avatar>
-            <div>
-              <div className="text-xl font-bold">
-                {sessionData?.username}
-              </div>
-              <br/>
-            <div className="w-full flex flex-row">
-                {sessionData?.email}
-                <Dot/>
-                <Badge variant={sessionData?.is_admin ? "default" : "secondary"}>{sessionData?.is_admin ? "Admin" : "Inuit"}</Badge>
-                <Dot/>
-                Ownes {caches?.length} {caches?.length != 1 ? "Caches" : "Cache"}
-                <Dot/>
-                Ownes {keys?.length} {keys?.length != 1 ? "Keys" : "Key"}
+            <div className="flex items-center">
+              <div>
+                <div className="text-xl font-bold">
+                  {sessionData?.username}
+                </div>
+                <br/>
+                <div className="w-full flex flex-row">
+                  {sessionData?.email}
+                  <Dot/>
+                  <Badge variant={sessionData?.is_admin ? "default" : "secondary"}>{sessionData?.is_admin ? "Admin" : "Inuit"}</Badge>
+                  <Dot/>
+                  Ownes {caches?.length} {caches?.length != 1 ? "Caches" : "Cache"}
+                  <Dot/>
+                  Ownes {keys?.length} {keys?.length != 1 ? "Keys" : "Key"}
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
+              <Database/>
+              Caches
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
+              <Hammer/>
+              Builder
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           </CardContent>
         </Card>
       </div>
