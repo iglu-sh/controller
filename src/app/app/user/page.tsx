@@ -1,20 +1,28 @@
-import {auth} from "@/server/auth";
+'use client'
 import { Dot, User } from "lucide-react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {api} from "@/trpc/server";
+import {api} from "@/trpc/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {Badge} from "@/components/ui/badge";
 import EditUser from "@/components/custom/user/edit";
+import {SessionProvider, useSession} from "next-auth/react";
 
+export default function UserPageSessionWrapper(){
+    return(
+        <SessionProvider>
+            <UserPage />
+        </SessionProvider>
+    )
+}
+export function UserPage(){
+    const session = useSession()
+    const sessionData = session.data ? session.data.user.session_user : null
+  const caches_api = api.cache.byUser.useQuery()
+    const caches = caches_api.data
+  const keys_api = api.user.getApiKeys.useQuery()
+    const keys = keys_api.data
 
-export default async function UserPage(){
-  const session = await auth()
-  const sessionData = session?.user.session_user
-
-  const caches = await api.cache.byUser()
-  const keys = await api.user.getApiKeys()
-
-  const data = await api.user.getUserWithKeysAndCaches()
+  const {data} = api.user.getUserWithKeysAndCaches.useQuery()
 
   return(
     <div className="w-full flex flex-col gap-4">
@@ -28,7 +36,9 @@ export default async function UserPage(){
           </p>
         </div>
         <div className="flex flex-row gap-2">
-          {data[0] ? <EditUser userData={data[0]}/> : ""}
+            {
+                data?.[0] ? <EditUser userData={data[0]} /> : <></>
+            }
         </div>
       </div>
       <div className="grid grid-cols-1 gap-2">
@@ -41,8 +51,8 @@ export default async function UserPage(){
           </CardHeader>
           <CardContent className="grid grid-cols-[min-content_1fr] gap-10">
             <Avatar className="w-30 h-30">
-                <AvatarFallback style={{backgroundColor: session?.user.session_user.avatar_color}}>
-                    {session?.user.session_user.username.charAt(0) ?? "U"}
+                <AvatarFallback style={{backgroundColor: session.data ? session.data.user.session_user.avatar_color : "#000000", color: "white"}} >
+                    {session.data ? session.data.user.session_user.username : "U"}
                 </AvatarFallback>
             </Avatar>
             <div>
