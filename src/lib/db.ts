@@ -1657,4 +1657,30 @@ export default class Database{
         `, [publicSigningKeyId])
         await this.query(`COMMIT;`)
     }
+
+    public async getKeysForCache(cacheID:number):Promise<Array<{
+        apikey:Omit<keys, "hash">,
+        public_signing_keys:public_signing_keys[],
+        user:{
+            id:string,
+            username:string,
+            updated_at:Date,
+            avatar_color:string,
+            email:string,
+            is_admin:boolean
+        } | null
+    }>>{
+        return await this.query(`
+            SELECT json_build_object('id', k.id, 'name', k.name, 'description', k.description, 'created_at', k.created_at, 'updated_at', k.updated_at, 'user_id', k.user_id) as apikey, json_agg(row_to_json(psk.*)) as public_signing_keys, json_build_object('id', u.id, 'username', u.username, 'updated_at', u.updated_at, 'avatar_color', u.avatar_color, 'email', u.email, 'is_admin', u.is_admin) as "user" FROM cache.keys k
+                 INNER JOIN cache.cache_key ck ON ck.key_id = k.id
+                 INNER JOIN cache.signing_key_cache_api_link skcal ON skcal.key_id = k.id
+                 INNER JOIN cache.public_signing_keys psk ON psk.id = skcal.signing_key_id
+                 FULL JOIN cache.users u ON u.id = k.user_id
+            WHERE ck.cache_id = $1
+            GROUP BY k.id, k.name, k.hash, k.description, k.created_at, k.updated_at, k.user_id, u.id, u.username, u.email, u.created_at, u.updated_at
+            ORDER BY k.id;
+        `, [cacheID]).then((res)=>{
+            return res.rows
+        })
+    }
 }

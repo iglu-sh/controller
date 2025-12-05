@@ -10,10 +10,6 @@ import type {ColumnDef} from "@tanstack/react-table";
 import {DataTable} from "@/components/custom/DataTable";
 import RemovePublicSigningKey from "@/components/custom/user/removePublicSigningKey";
 
-
-
-
-
 export default function EditUser({
     userData
                                  }:{

@@ -4,37 +4,125 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {Label} from "@/components/ui/label";
 import {Input} from "@/components/ui/input";
 import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
-import {AlertCircleIcon} from "lucide-react";
+import {AlertCircleIcon, Bot, LoaderCircle} from "lucide-react";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {Select, SelectContent, SelectItem, SelectTrigger} from "@/components/ui/select";
 import type {ColumnDef} from "@tanstack/react-table";
-import type {public_signing_keys} from "@/types/db";
+import type {cache, keys, log, public_signing_keys} from "@/types/db";
 import {DataTable} from "@/components/custom/DataTable";
 import {Button} from "@/components/ui/button";
+import {api} from "@/trpc/react";
+import {useParams, useSearchParams} from "next/navigation";
+import {type SetStateAction, useEffect, useState} from "react";
+import type {derivationPackageOverview} from "@/types/api";
+import Logger from "@iglu-sh/logger";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
-const PSKColumns:ColumnDef<public_signing_keys>[] = [
+const APIKeyColumns:ColumnDef<{
+    apiKey:Omit<keys, 'hash'>,
+    public_signing_keys:public_signing_keys[],
+    user: {
+        id: string,
+        username: string,
+        updated_at: Date,
+        avatar_color: string,
+        email: string,
+        is_admin: boolean
+    }
+}>[] = [
     {
-        accessorKey: "name",
+        accessorKey: "apikey.name",
         header: "Name",
-        cell: (info)=> (info.getValue() as string).replaceAll("__[IGLU_BUILDER]", "")
     },
     {
-        accessorKey: "description",
+        accessorKey: "apikey.description",
         header: "Description",
         cell: (info)=> (info.getValue() as string || "No description provided")
     },
     {
-        accessorKey: "key",
-        header: "Key",
+        accessorKey: "user.username",
+        header: "Owner",
+        cell: ({row}) => {
+            return (
+                <div>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Avatar>
+                                <AvatarFallback style={{backgroundColor:row.original.user.avatar_color ?? "#111827"}}>
+                                    {row.original.user.username?.charAt(0).toUpperCase() ?? <Bot />}
+                                </AvatarFallback>
+                            </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <div className="flex flex-col">
+                                <div className="font-bold text-sm">
+                                    {row.original.user.username || "Iglu Builder"}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {row.original.user.email || "In use by an Iglu Builder configuration"}
+                                </div>
+                            </div>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            )
+        }
     },
     {
-        accessorKey: "id",
-        header: "Actions"
+        accessorKey: "public_signing_keys",
+        header: "Signing Keys associated",
+        cell: ({row}) => {
+            const keys = row.original.public_signing_keys
+            return (
+                <div className="flex flex-col">
+                    {keys.length}
+                </div>
+            )
+        }
+    },
+    {
+        accessorKey: "apikey.id",
+        header: "Actions",
+        cell: ({row}) => {
+            return (
+                <div className="flex flex-row gap-2">
+                    <Button variant="destructive" size="sm" disabled>
+                        Remove from Cache
+                    </Button>
+                </div>
+            )
+        }
     }
 ]
 export default function Performance(){
-  return(
-    <div className="flex flex-col gap-4 mb-5">
+    const params = useSearchParams()
+    const cacheID = params.get("cacheID")
+    if(!cacheID) {
+        console.log("No cache ID provided")
+        return <LoaderCircle className="animate-spin" />
+    }
+    const api_cache = api.cache.getOverview.useQuery({cacheID: parseInt(cacheID)})
+    const api_cacheKeys = api.cache.getKeys.useQuery({cacheID: parseInt(cacheID)})
+    const [cache, setCache]= useState(api_cache.data)
+    const [cacheKeys, setCacheKeys] = useState(api_cacheKeys.data)
+    const [settingChanged, setSettingChanged] = useState(false)
+    useEffect(() => {
+        if(settingChanged) return
+        if(api_cache.data){
+            setCache(api_cache.data)
+            setSettingChanged(true)
+        }
+        if(api_cacheKeys.data){
+            setCacheKeys(api_cacheKeys.data)
+            setSettingChanged(true)
+        }
+    }, [api_cache, api_cacheKeys]);
+
+    if(api_cache.isLoading || api_cacheKeys.isLoading || !cache || !cacheKeys){
+        return <LoaderCircle className="animate-spin" />
+    }
+    return(
+    <div className="flex flex-col gap-4 mb-5 max-w-full">
         <div className="flex flex-col">
             <h1 className="text-3xl font-bold">
             Settings
@@ -57,14 +145,27 @@ export default function Performance(){
                     <Label htmlFor="name">
                         Name
                     </Label>
-                    <Input type="text" id="name"></Input>
+                    <Input type="text" id="name"
+                           minLength={3}
+                           value={cache.info.name}
+                           onChange={(e)=>{
+                               console.log("Changing name to ", e.target.value)
+                               setCache({
+                                      ...cache,
+                                      info: {
+                                        ...cache.info,
+                                        name: e.target.value
+                                      }
+                               })
+                           }}
+                    ></Input>
                 </div>
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="name">
                         Endpoint
                     </Label>
                     <div className="p-2 font-mono bg-muted rounded text-sm flex text-center items-center">
-                        http://localhost:3000/default
+                        http://localhost:3000/{cache.info.name}
                     </div>
                 </div>
                 <div className="flex flex-row col-span-2">
@@ -97,13 +198,23 @@ export default function Performance(){
                             </div>
                         </TooltipContent>
                     </Tooltip>
-                    <Select>
+                    <Select defaultValue={cache.info.preferredcompressionmethod}
+                        onValueChange={(e)=>{
+                            setCache({
+                                ...cache,
+                                info: {
+                                    ...cache.info,
+                                    preferredcompressionmethod: e
+                                }
+                            })
+                        }}
+                    >
                         <SelectTrigger>
-                            Select Compression Method
+                            {cache.info.preferredcompressionmethod.toUpperCase()}
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="xz">XZ</SelectItem>
-                            <SelectItem value="zsdt">ZSDT</SelectItem>
+                            <SelectItem value="xz" aria-selected={cache.info.preferredcompressionmethod == "xz"}>XZ</SelectItem>
+                            <SelectItem value="zsdt" aria-selected={cache.info.preferredcompressionmethod == "zsdt"}>ZSDT</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -111,7 +222,18 @@ export default function Performance(){
                     <Label htmlFor="priority">
                         Priority
                     </Label>
-                    <Input type="number" id="priority"></Input>
+                    <Input type="number" id="priority"
+                        value={cache.info.priority}
+                        onChange={(e)=>{
+                            setCache({
+                                ...cache,
+                                info: {
+                                    ...cache.info,
+                                    priority: parseInt(e.target.value)
+                                }
+                            })
+                        }}
+                    ></Input>
                 </div>
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="public_status">
@@ -131,7 +253,18 @@ export default function Performance(){
                     <Label htmlFor="github_username">
                         Github Username
                     </Label>
-                    <Input type="text" id="github_username"></Input>
+                    <Input type="text" id="github_username"
+                        value={cache.info.githubusername}
+                           onChange={(e)=>{
+                                 setCache({
+                                          ...cache,
+                                          info: {
+                                         ...cache.info,
+                                         githubusername: e.target.value
+                                          }
+                                 })
+                           }}
+                    ></Input>
                 </div>
             </CardContent>
         </Card>
@@ -141,7 +274,7 @@ export default function Performance(){
                     Authentication
                 </CardTitle>
                 <CardDescription>
-                    Configure which Public Keys are allowed to upload packages to this cache. Every single PSK needs to be added in your config as a trusted signing key. Any PSK wit the prefix ""
+                    Configure which Public Keys are allowed to upload packages to this cache. Every single PSK needs to be added in your config as a trusted signing key. The keys that you cannot delete is the ones that are used by the Iglu Builder service.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -149,13 +282,7 @@ export default function Performance(){
                     <h2 className="text-sm font-semibold">
                         API Keys Allowed to Upload
                     </h2>
-                    <DataTable columns={PSKColumns} data={[]} pageIndex={0} pageSize={25} noPagination={false} />
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-sm font-semibold">
-                        Public Signing Keys Allowed to Upload
-                    </h2>
-                    <DataTable columns={PSKColumns} data={[]} pageIndex={0} pageSize={25} noPagination={false} />
+                    <DataTable columns={APIKeyColumns} data={cacheKeys} pageIndex={0} pageSize={25} noPagination={false} />
                 </div>
             </CardContent>
         </Card>
@@ -163,5 +290,5 @@ export default function Performance(){
             Save Settings
         </Button>
     </div>
-  )
+)
 }
