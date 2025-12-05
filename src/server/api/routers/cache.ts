@@ -9,6 +9,7 @@ import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
 import type {cacheCreationObject} from "@/types/frontend";
 import type {cacheOverview} from "@/types/api";
+import type {keys, public_signing_keys} from "@/types/db";
 
 export const cache = createTRPCRouter({
     byUser: protectedProcedure
@@ -91,5 +92,44 @@ export const cache = createTRPCRouter({
     getBuilders: protectedProcedure
         .query(async ({ctx, input}) => {
 
-        })
+        }),
+    getKeys: protectedProcedure
+        .input(z.object({cacheID: z.number()}))
+        .query(async ({ctx, input}):Promise<Array<{
+            apikey:keys,
+            public_signing_keys:public_signing_keys[],
+            user: {
+                id: string,
+                username: string,
+                updated_at: Date,
+                avatar_color: string,
+                email: string,
+                is_admin: boolean
+            }
+        }>> => {
+            const db = new Database()
+            let returnValue:{
+                apikey:Omit<keys, 'hash'>,
+                public_signing_keys:public_signing_keys[],
+                user: {
+                    id: string | null,
+                    username: string | null,
+                    updated_at: Date | null,
+                    avatar_color: string | null,
+                    email: string | null,
+                    is_admin: boolean | null
+                }
+            }[] = []
+            try{
+                await db.connect()
+                returnValue = await db.getKeysForCache(input.cacheID)
+                await db.disconnect()
+            }
+            catch(e){
+                Logger.error(`Failed to get keys for cache ${input.cacheID}: ${e}`)
+                await db.disconnect()
+                await Promise.reject(e)
+            }
+            return returnValue
+        }),
 });
