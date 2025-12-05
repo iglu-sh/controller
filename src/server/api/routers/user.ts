@@ -51,6 +51,39 @@ export const user = createTRPCRouter({
                 throw e;
             }
         }),
+    getUserWithKeysAndCaches: protectedProcedure
+        .query(async ({ctx}):Promise<Array<{
+                user: User;
+                caches: cache[];
+                apikeys: keys[];
+                signingkeys: Array<{
+                    public_signing_key: public_signing_keys[];
+                    signing_key_cache_api_link: signing_key_cache_api_link[]
+                }>
+            }>> => {
+            const db = new Database()
+            let returnVal:Array<{
+                user: User;
+                caches: cache[];
+                apikeys: keys[];
+                signingkeys: Array<{
+                    public_signing_key: public_signing_keys[];
+                    signing_key_cache_api_link: signing_key_cache_api_link[]
+                }>
+            }> = []
+            try{
+                await db.connect()
+                returnVal = await db.getUserWithKeysAndCaches(ctx.session.user.session_user.id);
+            }
+            catch(e){
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+                await Promise.reject(`Failed to query Users with Keys and Caches: ${e}`);
+            }
+            finally {
+                await db.disconnect()
+            }
+            return returnVal
+        }),
     changePassword: protectedProcedure
         .input(z.object({oldPassword: z.string(), newPassword: z.string(), repeatPassword: z.string()}))
         .mutation(async ({ input, ctx }): Promise<boolean>=>{

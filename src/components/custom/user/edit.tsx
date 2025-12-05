@@ -21,10 +21,10 @@ export default function EditUser({
         user: User;
         caches: cache[];
         apikeys: keys[];
-        signing_keys: {
+        signingkeys: {
             public_signing_key: public_signing_keys[];
             signing_key_cache_api_link: signing_key_cache_api_link[]
-        }
+        }[]
     }
 }){
 
@@ -44,7 +44,7 @@ export default function EditUser({
         callback: (key: string, action: ("delete" | "removeFromUser"), target: ("apiKey" | "signingKey"), signingKey?: string) => void
     }[] = userData.apikeys.map(key => {
         // If the user has no signing keys, return empty array
-        if(!userData.signing_keys.public_signing_key){
+        if(!userData.signingkeys?.public_signing_key){
             return {
                 apiKey: key,
                 signingkeys: [],
@@ -52,7 +52,7 @@ export default function EditUser({
             }
         }
         const matchingSigningKeys = userData.signing_keys.public_signing_key.filter((psk)=>{
-            return userData.signing_keys.signing_key_cache_api_link.some((link: { key_id: number; }) => link.key_id === key.id);
+            return userData.signingkeys.signing_key_cache_api_link.some((link: { key_id: number; }) => link.key_id === key.id);
         })
         return {
             apiKey: key,

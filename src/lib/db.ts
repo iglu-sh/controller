@@ -687,6 +687,22 @@ export default class Database{
             return res.rows;
         })
     }
+    public async getUserWithKeysAndCaches(userId: string):Promise<Array<{user:User, caches:cache[], apikeys:keys[], signingkeys:Array<{public_signing_key:public_signing_keys[], signing_key_cache_api_link:signing_key_cache_api_link[]}>}>>{
+        return this.query(`
+            SELECT row_to_json(u.*) AS user,
+                   (SELECT json_agg(c.*) FROM cache.caches c INNER JOIN cache.cache_user_link cul ON c.id = cul.id WHERE cul.user_id = u.id GROUP BY u.id) as caches,
+                   (SELECT json_build_object('public_signing_key', json_agg(psk.*), 'signing_key_cache_api_link', json_agg(skcal.*)) FROM cache.public_signing_keys psk
+                      INNER JOIN cache.signing_key_cache_api_link skcal ON psk.id = skcal.signing_key_id
+                      INNER JOIN cache.keys ON skcal.key_id = keys.id
+                    WHERE keys.user_id = u.id
+                   ) as signing_keys,
+                   (SELECT json_agg(k.*) FROM cache.keys k WHERE k.user_id = u.id GROUP BY u.id) as apikeys
+            FROM cache.users u
+            WHERE u.id = $1;
+        `, [userId]).then((res)=>{
+            return res.rows as Array<{user:User, caches:cache[], apikeys:keys[], signingkeys:Array<{public_signing_key:public_signing_keys[], signing_key_cache_api_link:signing_key_cache_api_link[]}>}>;
+        })
+    }
     public async getUserByNameOrEmail(username:string, email:string):Promise<User | null>{
         return await this.query(`
             SELECT * FROM cache.users WHERE username = $1 OR email = $2

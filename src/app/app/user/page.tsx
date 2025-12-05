@@ -1,15 +1,21 @@
 import {auth} from "@/server/auth";
-import { Database, Hammer, User } from "lucide-react";
-import Link from "next/link";
+import { Dot, User } from "lucide-react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {api} from "@/trpc/server";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {Badge} from "@/components/ui/badge";
+import EditUser from "@/components/custom/user/edit";
 
 
 export default async function UserPage(){
   const session = await auth()
-  const userData = session?.user.session_user
+  const sessionData = session?.user.session_user
 
-  const cache = await api.cache.byUser()
+  const caches = await api.cache.byUser()
+  const keys = await api.user.getApiKeys()
+
+  const data = await api.user.getUserWithKeysAndCaches()
+
   return(
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-row justify-betweeni items-center w-full">
@@ -21,6 +27,9 @@ export default async function UserPage(){
             Your profile information
           </p>
         </div>
+        <div className="flex flex-row gap-2">
+          {data[0] ? <EditUser userData={data[0]}/> : ""}
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-2">
         <Card>
@@ -30,81 +39,28 @@ export default async function UserPage(){
               Account
             </CardTitle>
           </CardHeader>
-          <table className="m-auto table border-spacing-2 border-separate">
-            <tbody>
-              <tr>
-                <th className="text-xl text-left">Username:</th>
-                <td className="text-xl">{userData?.username}</td>
-              </tr>
-              <tr>
-                <th className="text-xl text-left">Email:</th>
-                <td className="text-xl">{userData?.email}</td>
-              </tr>
-              <tr>
-                <th className="text-xl text-left">Adminuser:</th>
-                <td className="text-xl"><input type="checkbox" name="" id="" checked={userData?.is_admin} readOnly inputMode="none"/></td>
-              </tr>
-              <tr>
-                <th className="text-xl text-left">Password:</th>
-                <td className="text-xl"><Link href="/user/pw-reset" className="text-(--primary)">reset</Link></td>
-              </tr>
-            </tbody>
-          </table>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
-              <Database/>
-              Caches
-            </CardTitle>
-            <CardContent className="grid grid-cols-2 gap-2">
-
-            {cache.map(c => {
-              return (
-                <Card key={c.id} className="bg-(--secondary)/25">
-                  <CardHeader>
-                    <CardTitle className="text-bold text-xl">{c.uri}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <table className="m-auto table border-spacing-2 border-separate">
-                      <tbody>
-                        <tr>
-                          <th className="text-m text-left">Name:</th>
-                          <td className="text-m">{c.name}</td>
-                        </tr>
-                        <tr>
-                          <th className="text-m text-left">ID:</th>
-                          <td className="text-m">{c.id}</td>
-                        </tr>
-                        <tr>
-                          <th className="text-m text-left">Public:</th>
-                          <td className="text-m"><input type="checkbox" name="" id="" checked={c.ispublic} readOnly inputMode="none"/></td>
-                        </tr>
-                        <tr>
-                          <th className="text-m text-left">Permission:</th>
-                          <td className="text-m">{c.permission ? c.permission : "NONE"}</td>
-                        </tr>
-                        <tr>
-                          <th className="text-m text-left">Compression:</th>
-                          <td className="text-m">{c.preferredcompressionmethod}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </CardContent>
-                </Card>
-              )
-            })}
-            </CardContent>
-
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
-              <Hammer/>
-              Builders 
-            </CardTitle>
-          </CardHeader>
+          <CardContent className="grid grid-cols-[min-content_1fr] gap-10">
+            <Avatar className="w-30 h-30">
+                <AvatarFallback style={{backgroundColor: session?.user.session_user.avatar_color}}>
+                    {session?.user.session_user.username.charAt(0) ?? "U"}
+                </AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="text-xl font-bold">
+                {sessionData?.username}
+              </div>
+              <br/>
+            <div className="w-full flex flex-row">
+                {sessionData?.email}
+                <Dot/>
+                <Badge variant={sessionData?.is_admin ? "default" : "secondary"}>{sessionData?.is_admin ? "Admin" : "Inuit"}</Badge>
+                <Dot/>
+                Ownes {caches?.length} {caches?.length != 1 ? "Caches" : "Cache"}
+                <Dot/>
+                Ownes {keys?.length} {keys?.length != 1 ? "Keys" : "Key"}
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
