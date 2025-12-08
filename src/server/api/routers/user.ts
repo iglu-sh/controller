@@ -7,7 +7,8 @@ import {
 } from "@/server/api/trpc";
 import Database from "@/lib/db";
 import Logger from "@iglu-sh/logger";
-import type {apiKeyWithCache, keys, User} from "@/types/db";
+import type {apiKeyWithCache, cache_key, keys, User} from "@/types/db";
+import type {cache, public_signing_keys} from "@iglu-sh/types/core/db";
 
 
 export const user = createTRPCRouter({
@@ -114,11 +115,23 @@ export const user = createTRPCRouter({
             return success
         }),
     getApiKeys: protectedProcedure
-        .query(async ({ ctx }):Promise<apiKeyWithCache[]> => {
+        .query(async ({ ctx }):Promise<{
+            key: keys
+            cacheKeyLinks: cache_key[]
+            caches: cache[]
+            associatedPSKs: public_signing_keys[]
+        }[]> => {
             const db = new Database();
             try{
                 await db.connect();
-                const apiKeys = await db.getApiKeysByUserId(ctx.session.user.session_user.id);
+                let apiKeys:any = await db.getApiKeysByUserId(ctx.session.user.session_user.id);
+                // Fetch the associated public signing keys for each API key
+                let i = 0;
+                for (const apiKey of apiKeys) {
+                    const pskLinks = await db.getSigningKeysByApiKeyID(apiKey.key.id);
+                    apiKeys[i].associatedPSKs = pskLinks;
+                    i++
+                }
                 await db.disconnect();
                 return apiKeys;
             }

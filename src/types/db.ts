@@ -164,8 +164,8 @@ export type xTheEverythingType = {
 }
 
 export type apiKeyWithCache = {
-    key: keys,
-    cacheKeyLinks: cache_key[],
+    key: Omit<keys, "hash">,
+    cachekeylinks: cache_key[],
     caches: cache[]
 }
 export type dbLogResourceType = 'cache' | 'derivation' | 'user' | 'builder' | 'signing_key' | 'api_key'

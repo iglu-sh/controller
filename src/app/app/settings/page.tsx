@@ -17,83 +17,9 @@ import {type SetStateAction, useEffect, useState} from "react";
 import type {derivationPackageOverview} from "@/types/api";
 import Logger from "@iglu-sh/logger";
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import RemoveFromCache from "@/components/custom/apiKeys/removeFromCache";
+import AddApiKey from "@/components/custom/apiKeys/addApiKey";
 
-const APIKeyColumns:ColumnDef<{
-    apiKey:Omit<keys, 'hash'>,
-    public_signing_keys:public_signing_keys[],
-    user: {
-        id: string,
-        username: string,
-        updated_at: Date,
-        avatar_color: string,
-        email: string,
-        is_admin: boolean
-    }
-}>[] = [
-    {
-        accessorKey: "apikey.name",
-        header: "Name",
-    },
-    {
-        accessorKey: "apikey.description",
-        header: "Description",
-        cell: (info)=> (info.getValue() as string || "No description provided")
-    },
-    {
-        accessorKey: "user.username",
-        header: "Owner",
-        cell: ({row}) => {
-            return (
-                <div>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Avatar>
-                                <AvatarFallback style={{backgroundColor:row.original.user.avatar_color ?? "#111827"}}>
-                                    {row.original.user.username?.charAt(0).toUpperCase() ?? <Bot />}
-                                </AvatarFallback>
-                            </Avatar>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <div className="flex flex-col">
-                                <div className="font-bold text-sm">
-                                    {row.original.user.username || "Iglu Builder"}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    {row.original.user.email || "In use by an Iglu Builder configuration"}
-                                </div>
-                            </div>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            )
-        }
-    },
-    {
-        accessorKey: "public_signing_keys",
-        header: "Signing Keys associated",
-        cell: ({row}) => {
-            const keys = row.original.public_signing_keys
-            return (
-                <div className="flex flex-col">
-                    {keys.length}
-                </div>
-            )
-        }
-    },
-    {
-        accessorKey: "apikey.id",
-        header: "Actions",
-        cell: ({row}) => {
-            return (
-                <div className="flex flex-row gap-2">
-                    <Button variant="destructive" size="sm" disabled>
-                        Remove from Cache
-                    </Button>
-                </div>
-            )
-        }
-    }
-]
 export default function Performance(){
     const params = useSearchParams()
     const cacheID = params.get("cacheID")
@@ -121,6 +47,87 @@ export default function Performance(){
     if(api_cache.isLoading || api_cacheKeys.isLoading || !cache || !cacheKeys){
         return <LoaderCircle className="animate-spin" />
     }
+    const APIKeyColumns:ColumnDef<{
+        apikey:Omit<keys, 'hash'>,
+        public_signing_keys:public_signing_keys[],
+        user: {
+            id: string,
+            username: string,
+            updated_at: Date,
+            avatar_color: string,
+            email: string,
+            is_admin: boolean
+        }
+    }>[] = [
+        {
+            accessorKey: "apikey.name",
+            header: "Name",
+        },
+        {
+            accessorKey: "apikey.description",
+            header: "Description",
+            cell: (info)=> (info.getValue() as string || "No description provided")
+        },
+        {
+            accessorKey: "user.username",
+            header: "Owner",
+            cell: ({row}) => {
+                return (
+                    <div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Avatar>
+                                    <AvatarFallback style={{backgroundColor:row.original.user.avatar_color ?? "#111827"}}>
+                                        {row.original.user.username?.charAt(0).toUpperCase() ?? <Bot />}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <div className="flex flex-col">
+                                    <div className="font-bold text-sm">
+                                        {row.original.user.username || "Iglu Builder"}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {row.original.user.email || "In use by an Iglu Builder configuration"}
+                                    </div>
+                                </div>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                )
+            }
+        },
+        {
+            accessorKey: "public_signing_keys",
+            header: "Signing Keys associated",
+            cell: ({row}) => {
+                const keys = row.original.public_signing_keys
+                return (
+                    <div className="flex flex-col">
+                        {keys.length}
+                    </div>
+                )
+            }
+        },
+        {
+            accessorKey: "apikey.id",
+            header: "Actions",
+            cell: ({row}) => {
+                return (
+                    <div className="flex flex-row gap-2">
+                        <Button variant="secondary" disabled={!row.original.user.username}>
+                            Edit PSKs
+                        </Button>
+                        <RemoveFromCache
+                            apiKeyId={row.original.apikey.id.toString()}
+                            cacheId={cacheID}
+                            disabled={!row.original.user.username}
+                        />
+                    </div>
+                )
+            }
+        }
+    ]
     return(
     <div className="flex flex-col gap-4 mb-5 max-w-full">
         <div className="flex flex-col">
@@ -279,9 +286,18 @@ export default function Performance(){
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                    <h2 className="text-sm font-semibold">
-                        API Keys Allowed to Upload
-                    </h2>
+                    <div className="flex flex-row justify-between items-center">
+                        <h2 className="text-sm font-semibold">
+                            API Keys Allowed to Upload
+                        </h2>
+                        <AddApiKey cacheId={cacheID} alreadyAssignedKeys={
+                            cacheKeys.map(ck => ck.apikey.id)
+                        }
+                        alreadyAssignedPSKs={
+                            cacheKeys.flatMap(ck => ck.public_signing_keys.map(psk => psk.id))
+                        }
+                        />
+                    </div>
                     <DataTable columns={APIKeyColumns} data={cacheKeys} pageIndex={0} pageSize={25} noPagination={false} />
                 </div>
             </CardContent>
