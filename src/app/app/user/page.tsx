@@ -1,5 +1,5 @@
 'use client'
-import { Database, Dot, Hammer, User } from "lucide-react";
+import { Database, Dot, Hammer, Key, User } from "lucide-react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {api} from "@/trpc/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -7,7 +7,10 @@ import {Badge} from "@/components/ui/badge";
 import EditUser from "@/components/custom/user/edit";
 import {SessionProvider, useSession} from "next-auth/react";
 import { DataTable } from "@/components/custom/DataTable";
+import type {ColumnDef} from "@tanstack/react-table";
+import {redirect} from "next/navigation";
 import { Button } from "@/components/ui/button";
+import type { cache } from "@/types/db";
 
 export default function UserPageSessionWrapper(){
     return(
@@ -23,8 +26,35 @@ export function UserPage(){
   const caches = caches_api.data
   const keys_api = api.user.getApiKeys.useQuery()
   const keys = keys_api.data
-
   const {data} = api.user.getUserWithKeysAndCaches.useQuery()
+
+  const cacheColumns:ColumnDef<cache> = [
+    {
+      accessorKey: "name",
+      header: "Cache Name"
+    },
+    {
+      accessorKey: "uri",
+      header: "URI"
+    },
+    {
+      accessorKey: "ispublic",
+      header: "Public"
+    },
+    {
+      accessorKey: "id",
+      header: "Action",
+      cell: ({row}) => {
+        return(
+          <>
+            <Button onClick={() => redirect("/app/settings?cacheID=" + row.original.id)}>
+              Edit
+            </Button>
+          </>
+        )
+      }
+    }
+  ]
 
   return(
     <div className="w-full flex flex-col gap-4">
@@ -39,7 +69,7 @@ export function UserPage(){
         </div>
         <div className="flex flex-row gap-2">
             {
-                data?.[0] ? <EditUser text="Edit" variant="default" userData={data[0]} /> : <></>
+                data?.[0] ? <EditUser text="Edit" variant="default" userData={data[0]} /> : <Button disabled={true}>Edit</Button>
             }
         </div>
       </div>
@@ -60,17 +90,17 @@ export function UserPage(){
             <div className="flex items-center">
               <div>
                 <div className="text-xl font-bold">
-                  {sessionData?.username}
+                  {sessionData?.username ?? "inuit"}
                 </div>
                 <br/>
                 <div className="w-full flex flex-row">
-                  {sessionData?.email}
+                  {sessionData?.email ?? "inuit@iglu.sh"}
                   <Dot/>
-                  <Badge variant={sessionData?.is_admin ? "default" : "secondary"}>{sessionData?.is_admin ? "Admin" : "Inuit"}</Badge>
+                  <Badge variant={sessionData?.is_admin ? "default" : "secondary"}>{(sessionData?.is_admin ? "Admin" : "Inuit") ?? "Inuit"}</Badge>
                   <Dot/>
-                  Ownes {caches?.length} {caches?.length != 1 ? "Caches" : "Cache"}
+                  Ownes {caches?.length ?? "0"} {caches?.length != 1 ? "Caches" : "Cache"}
                   <Dot/>
-                  Ownes {keys?.length} {keys?.length != 1 ? "Keys" : "Key"}
+                  Ownes {keys?.length ?? "0"} {keys?.length != 1 ? "Keys" : "Key"}
                 </div>
               </div>
             </div>
@@ -84,16 +114,10 @@ export function UserPage(){
             </CardTitle>
           </CardHeader>
           <CardContent>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex flex-row items-center gap-2">
-              <Hammer/>
-              Builder
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            {
+              caches ?
+              <DataTable columns={cacheColumns} data={caches}/> : null
+            }
           </CardContent>
         </Card>
       </div>
