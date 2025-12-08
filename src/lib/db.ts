@@ -10,7 +10,7 @@ import type {
     User,
     uuid,
     xTheEverythingType,
-    pkgsInfo
+    pkgsInfo, cache_key
 } from "@/types/db";
 import bcrypt from "bcryptjs";
 import type {cacheCreationObject} from "@/types/frontend";
@@ -929,16 +929,37 @@ export default class Database{
     }
     public async getApiKeysByUserId(userId:string):Promise<Array<apiKeyWithCache>>{
         return await this.query(`
-            SELECT row_to_json(keys.*) as key, array_agg(row_to_json(ck.*)) as cacheKeyLinks, array_agg(row_to_json(ca.*)) as caches FROM cache.keys
-              INNER JOIN cache.cache_key as ck ON keys.id = ck.key_id
-              INNER JOIN cache.caches as ca ON ck.cache_id = ca.id
+            SELECT json_build_object('id',keys.id, 'name', keys.name, 'description', keys.description, 'created_at', keys.created_at, 'updated_at', keys.updated_at, 'user_id', keys.user_id) as key,
+                   array_agg(row_to_json(ck.*)) as cacheKeyLinks, 
+                   array_agg(row_to_json(ca.*)) as caches FROM cache.keys
+              FULL JOIN cache.cache_key as ck ON keys.id = ck.key_id
+              FULL JOIN cache.caches as ca ON ck.cache_id = ca.id
             WHERE keys.user_id = $1
             GROUP BY keys.id
         `, [userId]).then((res:QueryResult<apiKeyWithCache>)=>{
-            return res.rows
+            return res.rows.map((row)=>{
+                return {
+                    key: row.key,
+                    cachekeylinks: row.cachekeylinks.filter((link:cache_key)=>link !== null),
+                    caches: row.caches.filter((cache:cache)=>cache !== null)
+                } as apiKeyWithCache;
+            })
         })
             .catch((err)=>{
                 Logger.error(`Failed to get API keys for user ${userId} ${err}`);
+                return [];
+            })
+    }
+    public async getSigningKeysByApiKeyID(apiKeyId:number):Promise<Array<public_signing_keys>>{
+        return await this.query(`
+            SELECT DISTINCT psk.* FROM cache.signing_key_cache_api_link
+                INNER JOIN cache.public_signing_keys psk ON signing_key_cache_api_link.signing_key_id = psk.id
+            WHERE key_id = $1
+        `, [apiKeyId]).then((res:QueryResult<public_signing_keys>)=>{
+            return res.rows
+        })
+            .catch((err)=>{
+                Logger.error(`Failed to get signing keys for API key ${apiKeyId} ${err}`);
                 return [];
             })
     }
@@ -1682,5 +1703,24 @@ export default class Database{
         `, [cacheID]).then((res)=>{
             return res.rows
         })
+    }
+
+    /*
+    * Removes the specified api key and all of its associated signing keys from the specified cache.
+    * @param apiKeyID - The ID of the API key to remove.
+    * @param cacheID - The ID of the cache to remove the API key from.
+    * */
+    public async removeKeyFromCache(apiKeyID:string, cacheID:string){
+        await this.query(`START TRANSACTION`)
+        // First remove all signing key links for this api key and cache
+        await this.query(`
+            DELETE FROM cache.cache_key WHERE key_id = $1 AND cache_id = $2
+        `, [apiKeyID, cacheID])
+        // Then delete all psk links associated with this api key and cache
+        await this.query(`
+            DELETE FROM cache.signing_key_cache_api_link WHERE key_id = $1 AND cache_id = $2
+        `, [apiKeyID, cacheID])
+        // Commit the transaction
+        await this.query(`COMMIT`)
     }
 }

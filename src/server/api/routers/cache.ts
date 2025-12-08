@@ -132,4 +132,22 @@ export const cache = createTRPCRouter({
             }
             return returnValue
         }),
+    removeKeyFromCache: protectedProcedure
+        .input(z.object({cacheID: z.string(), apiKeyID: z.string()}))
+        .mutation(async ({ctx, input}) => {
+            Logger.debug(`Removing key ${input.apiKeyID} from cache ${input.cacheID}`)
+            const db = new Database()
+            try{
+                await db.connect()
+                await db.removeKeyFromCache(input.apiKeyID, input.cacheID)
+            }
+            catch(e){
+                Logger.error(`Failed to remove key ${input.apiKeyID} from cache ${input.cacheID}: ${e}`)
+                await db.disconnect()
+                await Promise.reject(e)
+            }
+            finally{
+                await db.disconnect()
+            }
+        })
 });
